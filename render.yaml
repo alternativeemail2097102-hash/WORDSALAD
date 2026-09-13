@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: wordsalad-tiktok-live
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: EULERSTREAM_API_KEY
+        sync: false
