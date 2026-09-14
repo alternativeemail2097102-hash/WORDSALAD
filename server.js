@@ -1,9 +1,11 @@
 // =============================================================
 // WordSalad Live — server.js
-// A TikTok LIVE-powered word guessing game.
-// This single file runs the whole backend: the web server, the
-// real-time connection to the game screens, the TikTok LIVE
-// chat connection, and the game logic.
+// A TikTok LIVE-powered themed word-search game (the real WordSalad
+// mechanic): each round shows a theme and a letter grid; several
+// theme-related words are hidden in the grid. Viewers find them by
+// typing the word as a normal TikTok LIVE comment. This single file
+// runs the whole backend: the web server, the real-time connection to
+// the game screens, the TikTok LIVE chat connection, and game logic.
 // =============================================================
 
 require("dotenv").config();
@@ -12,7 +14,8 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const tiktokLib = require("tiktok-live-connector");
-const WORDS = require("./words");
+const PUZZLES = require("./puzzles");
+const { generatePuzzleGrid } = require("./grid-generator");
 
 // The tiktok-live-connector library has renamed its main class before
 // (WebcastPushConnection -> TikTokLiveConnection) and may do so again.
@@ -60,7 +63,6 @@ function safeMsg(err) {
 // 1. GAME STATE
 // -------------------------------------------------------------
 const state = {
-  // connection info
   connection: {
     mode: "idle",           // idle | connecting | live | test | error
     tiktokUsername: null,
@@ -69,31 +71,32 @@ const state = {
     lastReceived: null,     // { user, text, time }
     rawSamplesLogged: 0,    // how many raw samples we've captured (cap at 5)
   },
-  // game info
   game: {
     status: "waiting",      // waiting | playing | roundEnd
     difficulty: "easy",
-    currentWord: null,
-    scrambled: null,
-    revealedMask: null,     // array of booleans, one per letter
+    theme: null,
+    gridSize: 0,
+    grid: null,             // 2D array of letters
+    words: [],              // [{ word, length, cells, found, foundBy, points, hintMask }]
     hintsUsed: 0,
     roundStartedAt: null,
-    timeLimitSeconds: 45,
-    timeLeft: 45,
-    usedWords: [],
+    timeLimitSeconds: 90,
+    timeLeft: 90,
+    usedThemes: [],
   },
   leaderboard: {},          // { username: { score, name } }
   feed: [],                 // recent chat feed, most recent first, capped
 };
 
 let roundTimer = null;
+let autoAdvanceTimer = null;
 let testModeTimer = null;
 let tiktokConnection = null;
 
 const DIFFICULTY_SETTINGS = {
-  easy:   { basePoints: 60,  timeLimit: 40, hintEvery: 8  },
-  medium: { basePoints: 100, timeLimit: 55, hintEvery: 10 },
-  hard:   { basePoints: 160, timeLimit: 75, hintEvery: 12 },
+  easy:   { gridSize: 6, timeLimit: 75,  basePoints: 40,  perLetter: 6,  hintPenalty: 8  },
+  medium: { gridSize: 7, timeLimit: 100, basePoints: 55,  perLetter: 8,  hintPenalty: 10 },
+  hard:   { gridSize: 8, timeLimit: 130, basePoints: 75,  perLetter: 10, hintPenalty: 12 },
 };
 
 // -------------------------------------------------------------
@@ -105,28 +108,35 @@ function broadcastState() {
 
 function buildPublicState() {
   const g = state.game;
-  let display = null;
-  if (g.currentWord) {
-    display = g.currentWord
-      .split("")
-      .map((ch, i) => (g.revealedMask[i] ? ch : "_"))
-      .join(" ");
-  }
   return {
     connection: state.connection,
     game: {
       status: g.status,
       difficulty: g.difficulty,
-      scrambled: g.scrambled,
-      display,
-      wordLength: g.currentWord ? g.currentWord.length : 0,
-      hintsUsed: g.hintsUsed,
+      theme: g.theme,
+      gridSize: g.gridSize,
+      grid: g.grid,
+      words: g.words.map((w) => ({
+        length: w.length,
+        found: w.found,
+        foundBy: w.foundBy,
+        cells: w.found ? w.cells : null,     // only reveal the path once found
+        word: w.found ? w.word : null,        // only reveal the word once found
+        hint: buildHintString(w),
+      })),
+      wordsFound: g.words.filter((w) => w.found).length,
+      wordsTotal: g.words.length,
       timeLeft: g.timeLeft,
       timeLimitSeconds: g.timeLimitSeconds,
     },
     leaderboard: getTopN(10),
     feed: state.feed.slice(0, 30),
   };
+}
+
+function buildHintString(w) {
+  if (w.found) return w.word;
+  return w.hintMask.map((revealed, i) => (revealed ? w.word[i] : "_")).join("");
 }
 
 function getTopN(n) {
@@ -145,25 +155,14 @@ function pushFeed(entry) {
   if (state.feed.length > 50) state.feed.pop();
 }
 
-function scrambleWord(word) {
-  let letters = word.split("");
-  let attempt = 0;
-  let result;
-  do {
-    result = [...letters].sort(() => Math.random() - 0.5).join("");
-    attempt++;
-  } while (result === word && attempt < 10);
-  return result;
-}
-
-function pickNextWord(difficulty) {
-  const bank = WORDS[difficulty] || WORDS.easy;
-  const unused = bank.filter((w) => !state.game.usedWords.includes(w));
-  const pool = unused.length ? unused : bank; // reset if we've used them all
-  if (!unused.length) state.game.usedWords = [];
-  const word = pool[Math.floor(Math.random() * pool.length)];
-  state.game.usedWords.push(word);
-  return word;
+function pickPuzzle(difficulty) {
+  const bank = PUZZLES[difficulty] || PUZZLES.easy;
+  const unused = bank.filter((p) => !state.game.usedThemes.includes(p.theme));
+  const pool = unused.length ? unused : bank;
+  if (!unused.length) state.game.usedThemes = [];
+  const puzzle = pool[Math.floor(Math.random() * pool.length)];
+  state.game.usedThemes.push(puzzle.theme);
+  return puzzle;
 }
 
 // -------------------------------------------------------------
@@ -171,19 +170,34 @@ function pickNextWord(difficulty) {
 // -------------------------------------------------------------
 function startRound() {
   clearInterval(roundTimer);
+  clearTimeout(autoAdvanceTimer);
+
   const settings = DIFFICULTY_SETTINGS[state.game.difficulty] || DIFFICULTY_SETTINGS.easy;
-  const word = pickNextWord(state.game.difficulty);
+  const puzzle = pickPuzzle(state.game.difficulty);
+  const { grid, placements, size } = generatePuzzleGrid(puzzle.words, settings.gridSize);
 
   state.game.status = "playing";
-  state.game.currentWord = word;
-  state.game.scrambled = scrambleWord(word);
-  state.game.revealedMask = word.split("").map(() => false);
+  state.game.theme = puzzle.theme;
+  state.game.gridSize = size;
+  state.game.grid = grid;
   state.game.hintsUsed = 0;
   state.game.roundStartedAt = Date.now();
   state.game.timeLimitSeconds = settings.timeLimit;
   state.game.timeLeft = settings.timeLimit;
+  state.game.words = puzzle.words.map((word) => {
+    const upper = word.toUpperCase();
+    return {
+      word: upper,
+      length: upper.length,
+      cells: placements[upper] || [],
+      found: false,
+      foundBy: null,
+      points: 0,
+      hintMask: new Array(upper.length).fill(false),
+    };
+  });
 
-  pushFeed({ type: "system", text: `New round started! Word has ${word.length} letters.`, time: Date.now() });
+  pushFeed({ type: "system", text: `New puzzle: "${puzzle.theme}" — find ${state.game.words.length} hidden words!`, time: Date.now() });
   broadcastState();
 
   let secondsElapsed = 0;
@@ -192,13 +206,8 @@ function startRound() {
       secondsElapsed++;
       state.game.timeLeft = Math.max(0, settings.timeLimit - secondsElapsed);
 
-      // auto-reveal a hint letter periodically
-      if (secondsElapsed % settings.hintEvery === 0) {
-        revealOneHintLetter();
-      }
-
       if (state.game.timeLeft <= 0) {
-        endRound(null); // nobody guessed in time
+        endRound("timeout");
       } else {
         broadcastState();
       }
@@ -210,55 +219,85 @@ function startRound() {
 
 function revealOneHintLetter() {
   const g = state.game;
-  if (!g.currentWord) return;
-  const hidden = g.revealedMask
+  if (g.status !== "playing") return;
+  const candidates = g.words.filter((w) => {
+    if (w.found) return false;
+    const hiddenCount = w.hintMask.filter((h) => !h).length;
+    return hiddenCount > 1; // always leave at least 1 letter hidden per word
+  });
+  if (!candidates.length) return;
+  const target = candidates[Math.floor(Math.random() * candidates.length)];
+  const hiddenIdx = target.hintMask
     .map((revealed, i) => (revealed ? -1 : i))
     .filter((i) => i !== -1);
-  if (hidden.length <= 1) return; // always leave at least 1 letter hidden
-  const idx = hidden[Math.floor(Math.random() * hidden.length)];
-  g.revealedMask[idx] = true;
+  const idx = hiddenIdx[Math.floor(Math.random() * hiddenIdx.length)];
+  target.hintMask[idx] = true;
   g.hintsUsed++;
 }
 
-function endRound(winner) {
+function endRound(reason) {
   clearInterval(roundTimer);
   const g = state.game;
-  const word = g.currentWord;
   g.status = "roundEnd";
 
-  if (winner) {
-    pushFeed({ type: "win", text: `🎉 ${winner.name} guessed it! The word was "${word}" (+${winner.points} pts)`, time: Date.now() });
+  if (reason === "timeout") {
+    const remaining = g.words.filter((w) => !w.found);
+    remaining.forEach((w) => { w.found = true; w.foundBy = null; });
+    pushFeed({
+      type: "system",
+      text: remaining.length
+        ? `⏱️ Time's up! The remaining word${remaining.length > 1 ? "s were" : " was"}: ${remaining.map((w) => w.word).join(", ")}.`
+        : "⏱️ Time's up!",
+      time: Date.now(),
+    });
   } else {
-    pushFeed({ type: "system", text: `⏱️ Time's up! The word was "${word}".`, time: Date.now() });
+    pushFeed({ type: "win", text: `🎉 Puzzle cleared! Great teamwork, chat!`, time: Date.now() });
   }
-  io.emit("roundResult", { winner, word });
+
   broadcastState();
+
+  // Automatically move on after a short pause so the show keeps
+  // flowing; the host can also press "Next Puzzle" any time sooner.
+  autoAdvanceTimer = setTimeout(() => startRound(), 7000);
 }
 
-function computeScore(settings, elapsedSeconds, hintsUsed) {
-  const timePenalty = Math.min(elapsedSeconds * 2, settings.basePoints * 0.5);
-  const hintPenalty = hintsUsed * 15;
-  return Math.max(15, Math.round(settings.basePoints - timePenalty - hintPenalty));
+function computeWordScore(settings, word, hintsUsedAtGuessTime, elapsedSeconds) {
+  const base = settings.basePoints + word.length * settings.perLetter;
+  const timePenalty = Math.min(elapsedSeconds * 1.5, base * 0.4);
+  const hintPenalty = hintsUsedAtGuessTime * settings.hintPenalty;
+  return Math.max(15, Math.round(base - timePenalty - hintPenalty));
 }
 
 function handleGuess(username, displayName, rawText) {
   const g = state.game;
-  if (g.status !== "playing" || !g.currentWord) return false;
+  if (g.status !== "playing") return false;
   const guess = (rawText || "").trim().toLowerCase();
   if (!guess) return false;
-  if (guess === g.currentWord.toLowerCase()) {
-    const settings = DIFFICULTY_SETTINGS[g.difficulty] || DIFFICULTY_SETTINGS.easy;
-    const elapsedSeconds = Math.floor((Date.now() - g.roundStartedAt) / 1000);
-    const points = computeScore(settings, elapsedSeconds, g.hintsUsed);
 
-    if (!state.leaderboard[username]) state.leaderboard[username] = { score: 0, name: displayName };
-    state.leaderboard[username].score += points;
-    state.leaderboard[username].name = displayName || username;
+  const target = g.words.find((w) => !w.found && w.word.toLowerCase() === guess);
+  if (!target) return false;
 
-    endRound({ username, name: displayName || username, points });
-    return true;
+  const settings = DIFFICULTY_SETTINGS[g.difficulty] || DIFFICULTY_SETTINGS.easy;
+  const elapsedSeconds = Math.floor((Date.now() - g.roundStartedAt) / 1000);
+  const points = computeWordScore(settings, target.word, g.hintsUsed, elapsedSeconds);
+
+  target.found = true;
+  target.foundBy = displayName || username;
+  target.points = points;
+
+  if (!state.leaderboard[username]) state.leaderboard[username] = { score: 0, name: displayName };
+  state.leaderboard[username].score += points;
+  state.leaderboard[username].name = displayName || username;
+
+  pushFeed({ type: "win", text: `✅ ${target.foundBy} found "${target.word}" (+${points} pts)`, time: Date.now() });
+
+  const allFound = g.words.every((w) => w.found);
+  if (allFound) {
+    endRound("cleared");
+  } else {
+    broadcastState();
   }
-  return false;
+  return true;
 }
 
 // -------------------------------------------------------------
@@ -292,11 +331,8 @@ function extractComment(data) {
 
 function extractUsername(data) {
   return getFirst(data, [
-    // v1-style flat fields
     "uniqueId", "userId",
-    // v2-style, nested under "user"
     "user.uniqueId", "user.uniqueid", "user.userId", "user.id",
-    // other possible wrappers seen across versions/forks
     "author.uniqueId", "data.uniqueId", "data.user.uniqueId",
   ]);
 }
@@ -315,9 +351,9 @@ function processIncomingChat(rawData, source) {
   try {
     state.connection.eventCount++;
 
-    // Requirement #1: log the FULL raw shape of the first few
-    // incoming messages so we can see the real field names,
-    // not the documented ones. Shown right on the host screen.
+    // Requirement: log the FULL raw shape of the first few incoming
+    // messages so we can see the real field names, not the documented
+    // ones. Shown right on the host screen, not just server logs.
     if (state.connection.rawSamplesLogged < 5) {
       state.connection.rawSamplesLogged++;
       console.log(`[RAW SAMPLE #${state.connection.rawSamplesLogged}]`, JSON.stringify(rawData));
@@ -332,13 +368,12 @@ function processIncomingChat(rawData, source) {
     const text = extractComment(rawData) || "";
 
     state.connection.lastReceived = { user: displayName, text, time: Date.now() };
-
     pushFeed({ type: "chat", user: displayName, text, time: Date.now() });
 
     const matched = handleGuess(username, displayName, text);
     if (!matched) broadcastState();
   } catch (err) {
-    // Requirement #5: one bad message must never crash the server.
+    // One bad message must never crash the server.
     console.error(`[processIncomingChat:${source}] error:`, err);
     broadcastDiagnostic("error", "A chat message caused an error but was safely skipped.");
   }
@@ -434,7 +469,7 @@ function disconnectTikTok() {
 // no TikTok login needed. Simulates viewers commenting.
 // -------------------------------------------------------------
 const FAKE_USERS = ["alex_98", "gamerqueen", "tiktok_fan22", "wordwiz", "night_owl", "sunnyday", "quickfox", "letterluv"];
-const FAKE_CHATTER = ["hi!", "this is fun", "hmm let me think", "lol", "gogogo", "not sure", "🔥🔥🔥"];
+const FAKE_CHATTER = ["hi!", "this is fun", "hmm let me think", "lol", "gogogo", "not sure", "🔥🔥🔥", "wait i see one"];
 
 function startTestMode() {
   stopTestMode();
@@ -449,10 +484,10 @@ function startTestMode() {
     try {
       const user = FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)];
       let text;
-      // occasionally send a correct guess so scoring can be tested end-to-end
       const g = state.game;
-      if (g.status === "playing" && Math.random() < 0.12) {
-        text = g.currentWord;
+      const unfound = g.status === "playing" ? g.words.filter((w) => !w.found) : [];
+      if (unfound.length && Math.random() < 0.18) {
+        text = unfound[Math.floor(Math.random() * unfound.length)].word;
       } else {
         text = FAKE_CHATTER[Math.floor(Math.random() * FAKE_CHATTER.length)];
       }
@@ -460,7 +495,7 @@ function startTestMode() {
     } catch (err) {
       console.error("[testMode] error:", err);
     }
-  }, 1400);
+  }, 1200);
 }
 
 function stopTestMode() {

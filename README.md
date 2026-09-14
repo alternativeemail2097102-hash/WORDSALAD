@@ -1,9 +1,15 @@
 # WordSalad Live — TikTok LIVE Word Game
 
-A fully-automated word guessing game for TikTok LIVE. Your viewers guess a
-scrambled word by typing in your TikTok comments — the game reads their
-comments in real time, scores correct guesses, and shows a live top-10
-leaderboard.
+A fully-automated themed word-search game for TikTok LIVE, built to
+match the real **wordsalad.online** game: each round has a **theme**
+(like "Pizza Toppings" or "Greek Mythology") and a grid of letters with
+several theme-related words hidden inside it. Your viewers find the
+hidden words by typing them as normal TikTok comments — different
+viewers can find different words in the same round, so the whole chat
+works together to clear the board. Correct guesses are highlighted
+live on the grid with the same connect-the-letters "highlighter line"
+effect the original game uses, and a live top-10 leaderboard tracks
+who's found the most.
 
 This README assumes **zero coding experience**. Follow it top to bottom.
 
@@ -12,7 +18,14 @@ This README assumes **zero coding experience**. Follow it top to bottom.
 ## What you're getting
 
 - `server.js` — the whole backend (connects to TikTok, runs the game)
-- `words.js` — the word bank (easy/medium/hard)
+- `puzzles.js` — the puzzle bank: thmes and their hidden words, split
+  by difficulty (easy/medium/hard)
+- `grid-generator.js` — builds a real word-search grid for each
+  puzzle, placing every word along a straight line of connected
+  letters (just like the real game) so answers can be highlighted
+  accurately when found
+- `public/theme.css` — the shared visual design system (colors, type,
+  buttons) used by both screens
 - `public/host.html` — **your** private control panel (use this yourself)
 - `public/display.html` — the big screen your **audience** sees (put this
   on your stream as a browser source / second window)
@@ -20,6 +33,20 @@ This README assumes **zero coding experience**. Follow it top to bottom.
 
 You will never open or edit any of these files yourself. You'll just
 upload the folder and click a few buttons.
+
+---
+
+## The design
+
+The Display Screen uses a distinct dark "garden at dusk" palette — deep
+pine backgrounds with three purposeful accent colors: leafy green for
+found words, warm citrus for the theme title and scores, and soft
+berry for host messages and alerts — paired with a characterful serif
+(Fraunces) for the theme title and a clean modern sans (Manrope) for
+everything else. When a word is found, its letters pulse and a
+highlighter-style line draws itself across the grid connecting them,
+the same visual signature the real WordSalad/NYT Strands genre is
+known for.
 
 ---
 
@@ -120,23 +147,32 @@ Bookmark both links. You'll use them every stream.
 
 1. **Before going live**, open the Host Panel and tap **"🧪 Test Mode"**.
    This simulates fake viewers commenting — no TikTok login needed — so
-   you can confirm everything works: press **Start Round**, watch the
-   word scramble, watch fake guesses come in on the Display Screen, and
-   confirm the leaderboard updates. Tap **Test Mode** again to stop it.
+   you can confirm everything works: press **Start Puzzle**, watch a
+   theme and grid appear, watch fake guesses find words on the Display
+   Screen, and confirm the leaderboard updates. Tap **Test Mode** again
+   to stop it.
 2. **When you go live on TikTok**, open the Host Panel, type your TikTok
    username into the box (no `@`), and tap **Connect**. The status pill
    will show what's happening. If it fails, it automatically retries a
    couple of times before showing a plain-English reason.
-3. Pick a **difficulty** (Easy / Medium / Hard).
-4. Tap **▶ Start Round**. The Display Screen shows the scrambled word to
-   your audience; they type their guess in your TikTok comments.
-5. The game automatically reveals letter hints over time, and moves to
-   the next word automatically when someone guesses correctly or time
-   runs out. Tap **⏭ Next Word** any time to skip manually.
-6. Use the **message box at the bottom of the Host Panel** to type
+3. Pick a **difficulty** (Easy / Medium / Hard) — this controls the grid
+   size and how many/how long the hidden words are.
+4. Tap **▶ Start Puzzle**. The Display Screen shows the theme and the
+   letter grid to your audience; they type a word they think is hidden
+   in the grid as a TikTok comment. Different viewers can find
+   different words in the same round — the whole chat works together.
+5. As each word is found, it lights up green on the grid with a
+   highlighter line connecting its letters, and its answer slot fills
+   in below the grid. The round ends automatically once all the words
+   are found (or time runs out, which reveals whatever's left), and the
+   next puzzle starts on its own a few seconds later — you can also tap
+   **⏭ Next Puzzle** any time to skip immediately.
+6. Tap **💡 Reveal Hint** any time to reveal one extra letter of a
+   still-hidden word — useful if chat is stuck.
+7. Use the **message box at the bottom of the Host Panel** to type
    anything yourself (answer a question, make an announcement) — it
    appears in the live comment feed on the Display Screen labeled HOST.
-7. The **Top 10 Leaderboard** updates live on both screens. Tap
+8. The **Top 10 Leaderboard** updates live on both screens. Tap
    **Reset Leaderboard** to start fresh for a new stream.
 
 ---
@@ -154,8 +190,8 @@ button:
   recording).
 - **Last received** — shows the very last comment the game saw, exactly
   as it understood it (`username: text`). If this updates but scores
-  never do, the words being typed just aren't matching the current
-  word.
+  never do, the words being typed just aren't matching any of the
+  current puzzle's hidden words.
 - **Raw message samples** — an expandable section showing the first 5
   messages exactly as TikTok sent them, in full detail. You'll never
   need this normally — it's there in case something looks broken and

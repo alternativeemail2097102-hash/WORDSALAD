@@ -1,0 +1,84 @@
+/* =============================================================
+   WordSalad Live — shared design system
+   Palette: "fresh dusk garden" — deep pine backgrounds with three
+   purposeful accents (leaf = correct/found, citrus = theme/score,
+   berry = host/alerts) rather than one generic neon accent.
+   Type: Fraunces (display, characterful serif) for theme titles and
+   big moments; Manrope (clean geometric sans) for all UI text.
+   ============================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --bg:        #0E1512;
+  --bg-glow:   #16241C;
+  --surface:   #17211C;
+  --surface-2: #1F2C25;
+  --line:      #2C3B32;
+
+  --ink:       #F1F5EE;
+  --ink-dim:   #9FB0A3;
+  --ink-faint: #6C7C71;
+
+  --leaf:      #7DC468;   /* found / correct / positive */
+  --leaf-dark: #0F2013;
+  --citrus:    #FFB84D;   /* theme title / score / emphasis */
+  --citrus-dark: #3A2708;
+  --berry:     #FF7A7A;   /* host tag / errors / alerts */
+  --sky:       #6FC7D9;   /* secondary info accent */
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+
+  --vh: 1vh;
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 15% -10%, var(--bg-glow) 0%, transparent 60%),
+    var(--bg);
+  color:var(--ink);
+  font-family:'Manrope',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+
+h1,h2,h3,.display-font{ font-family:'Fraunces',serif; }
+
+a{ color:var(--sky); }
+
+button{
+  border:none; border-radius:var(--radius-sm); padding:11px 16px;
+  font-weight:700; font-size:14px; font-family:'Manrope',sans-serif;
+  cursor:pointer; transition:transform .12s ease, filter .12s ease;
+  letter-spacing:0.01em;
+}
+button:active{ transform:scale(.96); }
+button:disabled{ opacity:.45; cursor:default; transform:none; }
+
+.btn-leaf{   background:var(--leaf);   color:#0C2109; }
+.btn-citrus{ background:var(--citrus); color:#3A2708; }
+.btn-berry{  background:var(--berry);  color:#3A0B0B; }
+.btn-ghost{  background:var(--surface-2); color:var(--ink); border:1px solid var(--line); }
+.btn-ghost:hover{ filter:brightness(1.15); }
+.btn-block{ width:100%; }
+
+.card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-lg); padding:18px;
+}
+
+.pill{
+  display:inline-flex; align-items:center; gap:6px; font-size:13px;
+  padding:6px 12px; border-radius:999px; background:var(--surface-2); color:var(--ink-dim);
+}
+.dot{ width:8px; height:8px; border-radius:50%; background:var(--ink-faint); flex:none; }
+.dot.live{ background:var(--leaf); box-shadow:0 0 8px var(--leaf); }
+.dot.test{ background:var(--citrus); box-shadow:0 0 8px var(--citrus); }
+.dot.error{ background:var(--berry); box-shadow:0 0 8px var(--berry); }
+
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
+::-webkit-scrollbar-track{ background:transparent; }
