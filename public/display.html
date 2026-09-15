@@ -3,98 +3,46 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>WordSalad Live</title>
+<title>WordSalad Live — Display</title>
 <link rel="stylesheet" href="/theme.css">
 <style>
-  body{
-    height: calc(var(--vh) * 100);
-    overflow:hidden; display:flex; flex-direction:column;
-  }
-  .topbar{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:16px 26px 6px; flex:none;
-  }
-  .brand{ font-size:20px; font-weight:600; letter-spacing:0.01em; }
+  body{ height: calc(var(--vh) * 100); overflow:hidden; display:flex; flex-direction:column; }
+  .topbar{ display:flex; justify-content:space-between; align-items:center; padding:16px 26px 6px; flex:none; }
+  .brand{ font-size:20px; font-weight:600; }
   .brand em{ font-style:normal; color:var(--citrus); }
-  .status-text{ font-size:13px; }
 
   .layout{ flex:1; display:flex; gap:18px; padding:6px 26px 22px; min-height:0; }
   .stage{ flex:1.7; display:flex; flex-direction:column; min-width:0; min-height:0; }
   .side{ flex:1; max-width:360px; display:flex; flex-direction:column; gap:14px; min-height:0; }
 
-  /* ---- theme header ---- */
   .theme-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
-  .theme-label{ font-size:12px; color:var(--ink-faint); text-transform:none; }
+  .theme-label{ font-size:12px; color:var(--ink-faint); }
   .theme-title{ font-size:clamp(22px, 3vw, 34px); font-weight:600; color:var(--citrus); line-height:1.1; }
   .progress-info{ display:flex; align-items:center; gap:14px; }
   .progress-dots{ display:flex; gap:6px; }
-  .progress-dot{ width:11px; height:11px; border-radius:50%; background:var(--surface-2); border:1px solid var(--line); transition:background .3s, border-color .3s; }
+  .progress-dot{ width:11px; height:11px; border-radius:50%; background:var(--surface-2); border:1px solid var(--line); }
   .progress-dot.done{ background:var(--leaf); border-color:var(--leaf); }
   .timer{ font-family:'Fraunces',serif; font-weight:600; font-size:20px; color:var(--ink); min-width:44px; text-align:right; }
   .timer.low{ color:var(--berry); }
 
-  /* ---- grid ---- */
-  .grid-wrap{
-    position:relative; width:min(100%, 62vh); margin:0 auto; flex:1; min-height:0;
-    display:flex; align-items:center; justify-content:center;
-  }
+  .grid-wrap{ position:relative; width:min(100%, 62vh); margin:0 auto; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; }
   .grid-square{ position:relative; width:100%; aspect-ratio:1/1; max-height:100%; }
-  .grid{
-    position:absolute; inset:0; display:grid; gap:5px;
-    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg);
-    padding:10px;
-  }
-  .cell{
-    background:var(--surface-2); border-radius:8px;
-    display:flex; align-items:center; justify-content:center;
-    font-family:'Fraunces',serif; font-weight:600; color:var(--ink);
-    font-size:clamp(11px, 2.6vw, 22px);
-    transition:background .35s ease, color .35s ease, transform .3s ease;
-  }
-  .cell.found{ background:var(--leaf); color:var(--leaf-dark); }
-  .cell.pulse{ animation:cellPulse .6s ease; }
-  @keyframes cellPulse{ 0%{ transform:scale(1); } 45%{ transform:scale(1.14); } 100%{ transform:scale(1); } }
-  .line-overlay{ position:absolute; inset:10px; pointer-events:none; }
-  .line-overlay line{ stroke:var(--leaf); stroke-width:2.2; stroke-linecap:round; opacity:0.55; }
+  .grid{ position:absolute; inset:0; display:grid; gap:5px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:10px; }
+  .cell{ font-size:clamp(11px, 2.6vw, 22px); border-radius:8px; }
 
-  /* ---- answer strip ---- */
   .answers{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; }
-  .answer-pill{
-    background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
-    padding:6px 12px; font-size:13px; letter-spacing:0.08em; color:var(--ink-dim);
-    font-family:'Manrope',sans-serif; font-weight:700; display:flex; align-items:center; gap:6px;
-    transition:background .3s, border-color .3s, color .3s;
-  }
-  .answer-pill.found{ background:rgba(125,196,104,0.14); border-color:var(--leaf); color:var(--leaf); }
-  .answer-pill .credit{ font-size:11px; font-weight:500; color:var(--ink-faint); letter-spacing:normal; }
-
   .instructions{ text-align:center; color:var(--ink-faint); font-size:14px; margin-top:12px; }
   .instructions b{ color:var(--sky); font-weight:700; }
 
-  /* ---- side panels ---- */
   .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px; display:flex; flex-direction:column; min-height:0; }
-  .panel h2{ font-size:13px; margin:0 0 8px; color:var(--ink-dim); font-weight:700; font-family:'Manrope',sans-serif; }
-
+  .panel h2{ font-size:13px; margin:0 0 8px; color:var(--ink-dim); font-weight:700; }
   .leaderboard{ flex:1; overflow:hidden; }
-  .leader-row{ display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
-  .leader-row:last-child{ border-bottom:none; }
-  .leader-rank{ font-weight:800; width:22px; text-align:center; color:var(--ink-faint); font-family:'Fraunces',serif; }
-  .leader-row:nth-child(1) .leader-rank{ color:var(--citrus); }
-  .leader-row:nth-child(2) .leader-rank{ color:#D9D9D9; }
-  .leader-row:nth-child(3) .leader-rank{ color:#CD8A57; }
-  .leader-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .leader-score{ font-weight:800; font-family:'Fraunces',serif; color:var(--citrus); }
-
-  .feed{ flex:2; overflow-y:auto; display:flex; flex-direction:column-reverse; gap:7px; font-size:13.5px; }
-  .feed-item{ line-height:1.4; }
-  .feed-item .u{ color:var(--sky); font-weight:700; }
-  .feed-item.win{ color:var(--leaf); font-weight:600; }
-  .feed-item.system{ color:var(--ink-faint); font-style:italic; }
-  .feed-item.host .u{ color:var(--berry); }
+  .feed-panel{ flex:2; overflow-y:auto; }
 
   @media (max-width: 800px){
     .layout{ flex-direction:column; }
-    .side{ max-width:none; flex-direction:row; flex:1; }
+    .side{ max-width:none; flex-direction:row; }
+    .panel{ flex:1; }
   }
 </style>
 </head>
@@ -102,7 +50,7 @@
 
   <div class="topbar">
     <div class="brand">Word<em>Salad</em> Live</div>
-    <div class="pill status-text"><span class="dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
+    <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
   </div>
 
   <div class="layout">
@@ -119,9 +67,8 @@
       </div>
 
       <div class="grid-wrap">
-        <div class="grid-square">
+        <div class="grid-square" id="gridSquare">
           <div class="grid" id="grid"></div>
-          <svg class="line-overlay" id="lineOverlay" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
         </div>
       </div>
 
@@ -132,16 +79,17 @@
     <div class="side">
       <div class="panel leaderboard">
         <h2>Top 10</h2>
-        <div id="leaderboard"><div style="color:var(--ink-faint); font-size:13px;">No scores yet — be the first!</div></div>
+        <div id="leaderboard"><div class="empty-hint">No scores yet — be the first!</div></div>
       </div>
-      <div class="panel feed">
-        <h2 style="padding:0 0 4px;">Live comments</h2>
-        <div class="feed" id="feed"></div>
+      <div class="panel feed-panel">
+        <h2>Live comments</h2>
+        <div class="feed-scroll" id="feed" style="display:flex; flex-direction:column-reverse; gap:7px;"></div>
       </div>
     </div>
   </div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/game-render.js"></script>
 <script>
   function setVH(){ document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px'); }
   window.addEventListener('resize', setVH);
@@ -149,82 +97,11 @@
   setVH();
 
   const socket = io();
-  const prevFound = {}; // word -> bool, to detect newly-found words for the pulse animation
+  const R = WordSaladRender;
 
-  function escapeHtml(str){
-    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
-  function renderGrid(gridSize, letters, words){
-    const gridEl = document.getElementById('grid');
-    gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-    gridEl.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
-
-    // figure out which cells belong to a found word, for coloring
-    const foundCellKey = new Set();
-    words.forEach(w => { if (w.found && w.cells) w.cells.forEach(([r,c]) => foundCellKey.add(r + ',' + c)); });
-
-    // rebuild cells only if the count changed (new puzzle), else update in place
-    const needsRebuild = gridEl.children.length !== gridSize * gridSize;
-    if (needsRebuild) {
-      gridEl.innerHTML = '';
-      for (let r = 0; r < gridSize; r++) {
-        for (let c = 0; c < gridSize; c++) {
-          const div = document.createElement('div');
-          div.className = 'cell';
-          div.dataset.r = r; div.dataset.c = c;
-          div.textContent = letters[r][c];
-          gridEl.appendChild(div);
-        }
-      }
-    }
-    Array.from(gridEl.children).forEach(cell => {
-      const key = cell.dataset.r + ',' + cell.dataset.c;
-      const shouldBeFound = foundCellKey.has(key);
-      const wasFound = cell.classList.contains('found');
-      cell.textContent = letters[cell.dataset.r][cell.dataset.c];
-      cell.classList.toggle('found', shouldBeFound);
-      if (shouldBeFound && !wasFound) {
-        cell.classList.add('pulse');
-        setTimeout(() => cell.classList.remove('pulse'), 650);
-      }
-    });
-
-    // draw highlighter lines for found words
-    const svg = document.getElementById('lineOverlay');
-    svg.innerHTML = '';
-    words.forEach(w => {
-      if (!w.found || !w.cells || w.cells.length < 2) return;
-      for (let i = 0; i < w.cells.length - 1; i++) {
-        const [r1, c1] = w.cells[i];
-        const [r2, c2] = w.cells[i + 1];
-        const x1 = (c1 + 0.5) / gridSize * 100, y1 = (r1 + 0.5) / gridSize * 100;
-        const x2 = (c2 + 0.5) / gridSize * 100, y2 = (r2 + 0.5) / gridSize * 100;
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', x1); line.setAttribute('y1', y1);
-        line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-        svg.appendChild(line);
-      }
-    });
-  }
-
-  function renderAnswers(words){
-    const wrap = document.getElementById('answers');
-    wrap.innerHTML = words.map(w => {
-      if (w.found) {
-        const credit = w.foundBy ? `<span class="credit">${escapeHtml(w.foundBy)}</span>` : '';
-        return `<div class="answer-pill found">${escapeHtml(w.word)} ${credit}</div>`;
-      }
-      return `<div class="answer-pill">${escapeHtml(w.hint.split('').join(' '))}</div>`;
-    }).join('');
-  }
-
-  function renderProgress(found, total){
-    const dots = document.getElementById('progressDots');
-    let html = '';
-    for (let i = 0; i < total; i++) html += `<div class="progress-dot ${i < found ? 'done' : ''}"></div>`;
-    dots.innerHTML = html;
-  }
+  socket.on('puzzleComplete', (info) => {
+    if (info.cleared) R.celebrate(document.getElementById('gridSquare'));
+  });
 
   socket.on('state', (s) => {
     const dot = document.getElementById('statusDot');
@@ -236,31 +113,18 @@
     document.getElementById('themeTitle').textContent = s.game.theme || '— waiting for host —';
 
     if (s.game.grid) {
-      renderGrid(s.game.gridSize, s.game.grid, s.game.words);
-      renderAnswers(s.game.words);
-      renderProgress(s.game.wordsFound, s.game.wordsTotal);
+      R.resetTrackingIfNewPuzzle(s.game.theme);
+      R.renderGrid(document.getElementById('grid'), s.game.gridSize, s.game.grid, s.game.words, s.game.clearedGrid);
+      R.renderAnswers(document.getElementById('answers'), s.game.words);
+      R.renderProgress(document.getElementById('progressDots'), s.game.wordsFound, s.game.wordsTotal);
     }
 
     const timerEl = document.getElementById('timerNum');
     timerEl.textContent = s.game.status === 'playing' ? s.game.timeLeft + 's' : '--';
     timerEl.classList.toggle('low', s.game.status === 'playing' && s.game.timeLeft <= 10);
 
-    const lb = document.getElementById('leaderboard');
-    if (!s.leaderboard.length) {
-      lb.innerHTML = '<div style="color:var(--ink-faint); font-size:13px;">No scores yet — be the first!</div>';
-    } else {
-      lb.innerHTML = s.leaderboard.map((row, i) =>
-        `<div class="leader-row"><span class="leader-rank">${i+1}</span><span class="leader-name">${escapeHtml(row.name)}</span><span class="leader-score">${row.score}</span></div>`
-      ).join('');
-    }
-
-    const feed = document.getElementById('feed');
-    feed.innerHTML = s.feed.slice(0, 25).map(item => {
-      if (item.type === 'system') return `<div class="feed-item system">${escapeHtml(item.text)}</div>`;
-      if (item.type === 'win') return `<div class="feed-item win">${escapeHtml(item.text)}</div>`;
-      if (item.type === 'host') return `<div class="feed-item host"><span class="u">HOST:</span> ${escapeHtml(item.text)}</div>`;
-      return `<div class="feed-item"><span class="u">${escapeHtml(item.user)}:</span> ${escapeHtml(item.text)}</div>`;
-    }).join('');
+    R.renderLeaderboard(document.getElementById('leaderboard'), s.leaderboard, 'No scores yet — be the first!');
+    R.renderFeed(document.getElementById('feed'), s.feed, 25);
   });
 </script>
 </body>

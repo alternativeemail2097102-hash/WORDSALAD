@@ -94,9 +94,9 @@ let testModeTimer = null;
 let tiktokConnection = null;
 
 const DIFFICULTY_SETTINGS = {
-  easy:   { gridSize: 6, timeLimit: 75,  basePoints: 40,  perLetter: 6,  hintPenalty: 8  },
-  medium: { gridSize: 7, timeLimit: 100, basePoints: 55,  perLetter: 8,  hintPenalty: 10 },
-  hard:   { gridSize: 8, timeLimit: 130, basePoints: 75,  perLetter: 10, hintPenalty: 12 },
+  easy:   { gridSize: 5, timeLimit: 70,  basePoints: 8,  perLetter: 1, timeDecay: 0.12, hintPenalty: 1 },
+  medium: { gridSize: 6, timeLimit: 95,  basePoints: 12, perLetter: 1, timeDecay: 0.10, hintPenalty: 2 },
+  hard:   { gridSize: 7, timeLimit: 125, basePoints: 16, perLetter: 1, timeDecay: 0.08, hintPenalty: 2 },
 };
 
 // -------------------------------------------------------------
@@ -126,6 +126,7 @@ function buildPublicState() {
       })),
       wordsFound: g.words.filter((w) => w.found).length,
       wordsTotal: g.words.length,
+      clearedGrid: g.grid ? computeClearedGrid(g.gridSize, g.words) : null,
       timeLeft: g.timeLeft,
       timeLimitSeconds: g.timeLimitSeconds,
     },
@@ -144,6 +145,24 @@ function getTopN(n) {
     .map(([username, v]) => ({ username, score: v.score, name: v.name || username }))
     .sort((a, b) => b.score - a.score)
     .slice(0, n);
+}
+
+// The real WordSalad mechanic: letters can belong to more than one
+// hidden word. A tile only disappears once every word that uses it has
+// been found -- not the moment any single word is found. This computes
+// which cells are fully used ("cleared") for the current word list.
+function computeClearedGrid(gridSize, words) {
+  const usedByAnyWord = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
+  const remainingUsers = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+  words.forEach((w) => {
+    w.cells.forEach(([r, c]) => {
+      usedByAnyWord[r][c] = true;
+      if (!w.found) remainingUsers[r][c]++;
+    });
+  });
+  return Array.from({ length: gridSize }, (_, r) =>
+    Array.from({ length: gridSize }, (_, c) => usedByAnyWord[r][c] && remainingUsers[r][c] === 0)
+  );
 }
 
 function broadcastDiagnostic(level, message) {
@@ -255,6 +274,7 @@ function endRound(reason) {
   }
 
   broadcastState();
+  io.emit("puzzleComplete", { cleared: reason === "cleared" });
 
   // Automatically move on after a short pause so the show keeps
   // flowing; the host can also press "Next Puzzle" any time sooner.
@@ -263,9 +283,9 @@ function endRound(reason) {
 
 function computeWordScore(settings, word, hintsUsedAtGuessTime, elapsedSeconds) {
   const base = settings.basePoints + word.length * settings.perLetter;
-  const timePenalty = Math.min(elapsedSeconds * 1.5, base * 0.4);
+  const timePenalty = Math.min(elapsedSeconds * settings.timeDecay, base * 0.5);
   const hintPenalty = hintsUsedAtGuessTime * settings.hintPenalty;
-  return Math.max(15, Math.round(base - timePenalty - hintPenalty));
+  return Math.max(3, Math.round(base - timePenalty - hintPenalty));
 }
 
 function handleGuess(username, displayName, rawText) {

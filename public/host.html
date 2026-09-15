@@ -3,78 +3,132 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<title>WordSalad Live — Host Panel</title>
+<title>WordSalad Live</title>
 <link rel="stylesheet" href="/theme.css">
 <style>
+  html,body{ height:100%; overflow:hidden; }
   body{
-    min-height: calc(var(--vh) * 100);
-    padding-bottom: 92px; /* room for sticky bar */
+    height: calc(var(--vh) * 100);
+    display:flex; flex-direction:column;
   }
-  header{
-    padding:18px 16px 10px; position:sticky; top:0; z-index:5;
-    background:linear-gradient(var(--bg) 78%, transparent);
-  }
-  .brand{ font-size:21px; font-weight:600; margin:0; }
-  .brand em{ font-style:normal; color:var(--citrus); }
-  .sub{ color:var(--ink-dim); font-size:13px; margin-top:3px; }
-  a.display-link{ color:var(--sky); font-weight:600; }
 
-  main{ padding:0 16px; max-width:640px; margin:0 auto; }
-  .card{ margin-bottom:14px; }
-  .card h2{ font-size:15px; margin:0 0 12px; font-weight:700; }
-  .card h2 .step{ color:var(--citrus); margin-right:6px; }
+  /* ---- top bar ---- */
+  .topbar{
+    flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px; gap:8px;
+  }
+  .brand{ font-size:16px; font-weight:700; white-space:nowrap; }
+  .brand em{ font-style:normal; color:var(--citrus); }
+  .topbar .pill{ font-size:11.5px; padding:5px 9px; flex:1; min-width:0; overflow:hidden; }
+  .topbar .pill span#statusText{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .icon-btn{
+    background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+    border-radius:10px; width:36px; height:36px; padding:0; flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+  }
+
+  /* ---- theme + progress row ---- */
+  .theme-row{
+    flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:2px 14px 6px; gap:10px;
+  }
+  .theme-title{
+    font-family:'Fraunces',serif; font-weight:600; color:var(--citrus);
+    font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;
+  }
+  .progress-dots{ display:flex; gap:4px; flex:none; }
+  .progress-dot{ width:8px; height:8px; border-radius:50%; background:var(--surface-2); border:1px solid var(--line); }
+  .progress-dot.done{ background:var(--leaf); border-color:var(--leaf); }
+  .timer{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; color:var(--ink); flex:none; min-width:30px; text-align:right; }
+  .timer.low{ color:var(--berry); }
+
+  /* ---- grid (majority of screen) ---- */
+  .grid-wrap{ flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; padding:2px 14px; }
+  .grid-square{ position:relative; height:100%; max-height:100%; width:auto; aspect-ratio:1/1; max-width:100%; }
+  .grid{
+    position:absolute; inset:0; display:grid; gap:4px;
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md);
+    padding:7px;
+  }
+  .cell{ font-size:clamp(10px, 4vw, 20px); border-radius:5px; }
+
+  /* ---- answer strip ---- */
+  .answers-strip{
+    flex:none; display:flex; gap:6px; overflow-x:auto; padding:8px 14px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .answers-strip::-webkit-scrollbar{ display:none; }
+
+  /* ---- tabbed compact panel (leaderboard / feed) ---- */
+  .panel-tabs{ flex:none; display:flex; gap:6px; padding:0 14px 6px; }
+  .tab-btn{
+    flex:1; background:var(--surface-2); border:1px solid var(--line); color:var(--ink-dim);
+    border-radius:8px; padding:6px; font-size:12px; font-weight:700;
+  }
+  .tab-btn.active{ background:var(--surface); color:var(--ink); border-color:var(--citrus); }
+  .tab-panel{
+    flex:0 0 108px; margin:0 14px 8px; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius-md); padding:8px 10px; overflow-y:auto;
+  }
+  .tab-content{ display:none; }
+  .tab-content.active{ display:block; }
+  .feed-scroll{ display:flex; flex-direction:column-reverse; gap:5px; }
+
+  /* ---- sticky bottom control bar ---- */
+  footer.sticky{
+    flex:none; background:var(--surface); border-top:1px solid var(--line);
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+    display:flex; gap:6px; align-items:center;
+  }
+  footer.sticky input[type=text]{
+    flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--ink); border-radius:var(--radius-sm); padding:10px 11px; font-size:14px; font-family:inherit;
+  }
+  footer.sticky input[type=text]:focus{ outline:2px solid var(--leaf); }
+  footer.sticky button{ flex:none; padding:10px 12px; font-size:13px; white-space:nowrap; }
+  #startBtn{ min-width:88px; }
+
+  /* ---- settings drawer ---- */
+  .drawer-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:20;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .drawer-backdrop.open{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed; left:0; right:0; bottom:0; z-index:21; max-height:88%;
+    background:var(--bg); border-top:1px solid var(--line); border-radius:20px 20px 0 0;
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+    transform:translateY(100%); transition:transform .25s ease; overflow-y:auto;
+  }
+  .drawer.open{ transform:translateY(0); }
+  .drawer h2{ font-size:14px; margin:16px 0 10px; font-weight:700; }
+  .drawer h2:first-child{ margin-top:0; }
+  .drawer-close{ position:absolute; top:12px; right:14px; }
+  .drawer-handle{ width:36px; height:4px; background:var(--line); border-radius:4px; margin:0 auto 6px; }
 
   .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-
-  input[type=text]{
+  input[type=text].drawer-input{
     flex:1; min-width:140px; background:var(--surface-2); border:1px solid var(--line);
     color:var(--ink); border-radius:var(--radius-sm); padding:11px 12px; font-size:15px; font-family:inherit;
   }
-  input[type=text]:focus{ outline:2px solid var(--leaf); }
-
-  .diag-counter{ font-size:30px; font-weight:700; color:var(--leaf); font-family:'Fraunces',serif; line-height:1; }
-  .diag-label{ font-size:12px; color:var(--ink-faint); margin-top:2px; }
+  .diffs{ display:flex; gap:8px; }
+  .diffs button{ flex:1; }
+  .diffs button.active{ outline:2px solid var(--citrus); }
+  .diag-counter{ font-size:26px; font-weight:700; color:var(--leaf); font-family:'Fraunces',serif; line-height:1; }
+  .diag-label{ font-size:11px; color:var(--ink-faint); margin-top:2px; }
   .diag{ font-size:13px; color:var(--ink-dim); line-height:1.6; }
   .diag b{ color:var(--ink); }
-
   details summary{ cursor:pointer; color:var(--ink-dim); font-size:13px; margin-top:10px; }
   .raw-log{
-    max-height:160px; overflow-y:auto; font-family:monospace; font-size:11px;
+    max-height:140px; overflow-y:auto; font-family:monospace; font-size:11px;
     background:#0A0F0C; border-radius:8px; padding:8px; margin-top:8px; color:#8FAE98;
     white-space:pre-wrap; word-break:break-all;
   }
 
-  .diffs{ display:flex; gap:8px; }
-  .diffs button{ flex:1; }
-  .diffs button.active{ outline:2px solid var(--citrus); }
-
-  .theme-preview{ font-family:'Fraunces',serif; font-size:19px; font-weight:600; color:var(--citrus); margin-bottom:10px; }
-  .answer-key{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
-  .answer-key-row{
-    display:flex; justify-content:space-between; align-items:center; font-size:14px;
-    background:var(--surface-2); border-radius:8px; padding:8px 10px;
-  }
-  .answer-key-row.found{ color:var(--leaf); }
-  .answer-key-row .who{ font-size:12px; color:var(--ink-faint); }
-
-  .timer-bar-track{ height:8px; background:var(--surface-2); border-radius:8px; overflow:hidden; margin-bottom:14px; }
-  .timer-bar-fill{ height:100%; background:var(--leaf); transition:width 1s linear; }
-
-  .leader-row{ display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
-  .leader-row:last-child{ border-bottom:none; }
-  .leader-rank{ color:var(--citrus); font-weight:700; width:24px; display:inline-block; font-family:'Fraunces',serif; }
-
-  footer.sticky{
-    position:sticky; bottom:0; left:0; right:0; z-index:10;
-    background:var(--surface); border-top:1px solid var(--line);
-    padding:10px 16px calc(10px + env(safe-area-inset-bottom));
-  }
-  footer.sticky .row{ max-width:640px; margin:0 auto; }
-
-  .toast-wrap{ position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:50; width:92%; max-width:600px; }
+  .toast-wrap{ position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:50; width:92%; max-width:500px; }
   .toast{
     background:var(--surface-2); border:1px solid var(--berry); color:var(--ink);
-    padding:10px 14px; border-radius:10px; font-size:13px; margin-bottom:6px;
+    padding:9px 13px; border-radius:10px; font-size:12.5px; margin-bottom:6px;
     animation:fadein .2s ease;
   }
   @keyframes fadein{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
@@ -84,92 +138,102 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
-<header>
-  <h1 class="brand">Word<em>Salad</em> Live — Host Panel</h1>
-  <div class="sub">Control the game here. Put the <a class="display-link" href="/display.html" target="_blank">Display Screen</a> on your stream overlay or second screen.</div>
-</header>
+<div class="topbar">
+  <div class="brand">Word<em>Salad</em></div>
+  <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Not connected</span></div>
+  <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+</div>
 
-<main>
+<div class="theme-row">
+  <div class="theme-title" id="themeTitle">— tap ⚙ then Start —</div>
+  <div class="progress-dots" id="progressDots"></div>
+  <div class="timer" id="timerNum">--</div>
+</div>
 
-  <div class="card">
-    <h2><span class="step">1</span>Connect to your TikTok LIVE</h2>
-    <div class="row">
-      <input type="text" id="usernameInput" placeholder="your TikTok username (no @)" />
-      <button class="btn-leaf" id="connectBtn">Connect</button>
-    </div>
-    <div class="row" style="margin-top:10px;">
-      <button class="btn-ghost" id="testModeBtn">🧪 Test Mode (no login)</button>
-      <button class="btn-ghost" id="disconnectBtn">Disconnect</button>
-    </div>
-    <div style="margin-top:12px;">
-      <span class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Not connected yet.</span></span>
-    </div>
+<div class="grid-wrap" id="gridWrap">
+  <div class="grid-square" id="gridSquare">
+    <div class="grid" id="grid"></div>
   </div>
+</div>
 
-  <div class="card">
-    <h2>Live diagnostics <span style="font-weight:400; color:var(--ink-faint); font-size:13px;">— so you never need server logs</span></h2>
-    <div class="row" style="align-items:flex-end;">
-      <div>
-        <div class="diag-counter" id="eventCounter">0</div>
-        <div class="diag-label">events received</div>
-      </div>
-      <div style="flex:1; min-width:180px;">
-        <div class="diag"><b>Last received:</b><br/><span id="lastReceived">— nothing yet —</span></div>
-      </div>
-    </div>
-    <details>
-      <summary>Show raw message samples (first 5)</summary>
-      <div class="raw-log" id="rawLog">Waiting for the first messages to arrive...</div>
-    </details>
+<div class="answers-strip" id="answers"></div>
+
+<div class="panel-tabs">
+  <button class="tab-btn active" id="tabLeaderboardBtn">🏆 Leaderboard</button>
+  <button class="tab-btn" id="tabFeedBtn">💬 Comments</button>
+</div>
+<div class="tab-panel">
+  <div class="tab-content active" id="tabLeaderboard">
+    <div id="leaderboard"><div class="empty-hint">No scores yet.</div></div>
   </div>
-
-  <div class="card">
-    <h2><span class="step">2</span>Round controls</h2>
-    <div class="diffs" style="margin-bottom:12px;">
-      <button class="btn-ghost" data-diff="easy">Easy</button>
-      <button class="btn-ghost" data-diff="medium">Medium</button>
-      <button class="btn-ghost" data-diff="hard">Hard</button>
-    </div>
-
-    <div class="theme-preview" id="themePreview">— no round yet —</div>
-    <div class="timer-bar-track"><div class="timer-bar-fill" id="timerFill" style="width:100%;"></div></div>
-    <div class="answer-key" id="answerKey"></div>
-
-    <div class="row">
-      <button class="btn-leaf btn-block" id="startBtn">▶ Start Puzzle</button>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <button class="btn-ghost" id="nextBtn">⏭ Next Puzzle</button>
-      <button class="btn-ghost" id="hintBtn">💡 Reveal Hint</button>
-    </div>
+  <div class="tab-content" id="tabFeed">
+    <div class="feed-scroll" id="feed"></div>
   </div>
-
-  <div class="card">
-    <h2>Top 10 leaderboard</h2>
-    <div id="leaderboard"><div class="diag">No scores yet.</div></div>
-    <div class="row" style="margin-top:10px;">
-      <button class="btn-ghost" id="resetLeaderboardBtn">Reset leaderboard</button>
-    </div>
-  </div>
-
-</main>
+</div>
 
 <footer class="sticky">
-  <div class="row">
-    <input type="text" id="hostMessageInput" placeholder="Type as HOST (shows on display + feed)" />
-    <button class="btn-citrus" id="hostSendBtn">Send</button>
-  </div>
+  <button class="btn-leaf" id="startBtn">▶ Start</button>
+  <button class="btn-ghost icon-btn" id="hintBtn" title="Reveal hint">💡</button>
+  <input type="text" id="hostMessageInput" placeholder="Type as host…" />
+  <button class="btn-citrus" id="hostSendBtn">Send</button>
 </footer>
 
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-handle"></div>
+  <button class="icon-btn drawer-close" id="closeDrawerBtn">✕</button>
+
+  <h2>Connect to your TikTok LIVE</h2>
+  <div class="row">
+    <input type="text" class="drawer-input" id="usernameInput" placeholder="your TikTok username (no @)" />
+    <button class="btn-leaf" id="connectBtn">Connect</button>
+  </div>
+  <div class="row" style="margin-top:10px;">
+    <button class="btn-ghost" id="testModeBtn">🧪 Test Mode (no login)</button>
+    <button class="btn-ghost" id="disconnectBtn">Disconnect</button>
+  </div>
+
+  <h2>Difficulty</h2>
+  <div class="diffs">
+    <button class="btn-ghost" data-diff="easy">Easy</button>
+    <button class="btn-ghost" data-diff="medium">Medium</button>
+    <button class="btn-ghost" data-diff="hard">Hard</button>
+  </div>
+
+  <h2>Round controls</h2>
+  <div class="row">
+    <button class="btn-ghost btn-block" id="nextBtn">⏭ Skip to Next Puzzle</button>
+  </div>
+  <div class="row" style="margin-top:8px;">
+    <button class="btn-ghost btn-block" id="resetLeaderboardBtn">Reset Leaderboard</button>
+  </div>
+
+  <h2>Live diagnostics <span style="font-weight:400; color:var(--ink-faint); font-size:12px;">— no server logs needed</span></h2>
+  <div class="row" style="align-items:flex-end;">
+    <div>
+      <div class="diag-counter" id="eventCounter">0</div>
+      <div class="diag-label">events received</div>
+    </div>
+    <div style="flex:1; min-width:180px;">
+      <div class="diag"><b>Last received:</b><br/><span id="lastReceived">— nothing yet —</span></div>
+    </div>
+  </div>
+  <details>
+    <summary>Show raw message samples (first 5)</summary>
+    <div class="raw-log" id="rawLog">Waiting for the first messages to arrive...</div>
+  </details>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
+<script src="/game-render.js"></script>
 <script>
-  // mobile viewport fix: never trust raw 100vh on phones
   function setVH(){ document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px'); }
   window.addEventListener('resize', setVH);
   window.addEventListener('orientationchange', setVH);
   setVH();
 
   const socket = io();
+  const R = WordSaladRender;
 
   function toast(msg){
     const wrap = document.getElementById('toastWrap');
@@ -190,12 +254,12 @@
     }
   });
 
-  function escapeHtml(str){
-    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+  socket.on('puzzleComplete', (info) => {
+    if (info.cleared) R.celebrate(document.getElementById('gridSquare'));
+  });
 
   socket.on('state', (s) => {
-    // connection panel
+    // status
     const dot = document.getElementById('statusDot');
     dot.className = 'dot ' + (s.connection.mode === 'live' ? 'live' : s.connection.mode === 'test' ? 'test' : s.connection.mode === 'error' ? 'error' : '');
     document.getElementById('statusText').textContent = s.connection.statusMessage;
@@ -204,58 +268,68 @@
       ? (s.connection.lastReceived.user + ': ' + s.connection.lastReceived.text)
       : '— nothing yet —';
 
-    // difficulty buttons
-    document.querySelectorAll('[data-diff]').forEach(b => {
-      b.classList.toggle('active', b.dataset.diff === s.game.difficulty);
-    });
+    document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('active', b.dataset.diff === s.game.difficulty));
 
-    // theme + answer key (host sees the real words, viewers don't)
-    document.getElementById('themePreview').textContent =
-      s.game.status === 'waiting' ? '— no round yet, press Start —' : (s.game.theme || '—');
+    document.getElementById('themeTitle').textContent = s.game.theme || '— tap ⚙ then Start —';
 
-    const pct = s.game.timeLimitSeconds ? Math.max(0, (s.game.timeLeft / s.game.timeLimitSeconds) * 100) : 100;
-    document.getElementById('timerFill').style.width = pct + '%';
+    const startBtn = document.getElementById('startBtn');
+    startBtn.textContent = s.game.status === 'playing' ? '⏸ Playing…' : (s.game.theme ? '▶ Restart' : '▶ Start');
+    startBtn.disabled = s.game.status === 'playing';
 
-    const keyEl = document.getElementById('answerKey');
-    if (s.game.words && s.game.words.length) {
-      keyEl.innerHTML = s.game.words.map(w => {
-        if (w.found) {
-          const who = w.foundBy ? `found by ${escapeHtml(w.foundBy)}` : 'revealed at time-out';
-          return `<div class="answer-key-row found"><span>✅ ${escapeHtml(w.word)}</span><span class="who">${who}</span></div>`;
-        }
-        return `<div class="answer-key-row"><span>${escapeHtml(w.hint.split('').join(' '))}</span><span class="who">${w.length} letters</span></div>`;
-      }).join('');
-    } else {
-      keyEl.innerHTML = '';
+    if (s.game.grid) {
+      R.resetTrackingIfNewPuzzle(s.game.theme);
+      R.renderGrid(document.getElementById('grid'), s.game.gridSize, s.game.grid, s.game.words, s.game.clearedGrid);
+      R.renderAnswers(document.getElementById('answers'), s.game.words);
+      R.renderProgress(document.getElementById('progressDots'), s.game.wordsFound, s.game.wordsTotal);
     }
 
-    // leaderboard
-    const lb = document.getElementById('leaderboard');
-    if (!s.leaderboard.length) {
-      lb.innerHTML = '<div class="diag">No scores yet.</div>';
-    } else {
-      lb.innerHTML = s.leaderboard.map((row, i) =>
-        `<div class="leader-row"><span><span class="leader-rank">#${i+1}</span>${escapeHtml(row.name)}</span><span>${row.score}</span></div>`
-      ).join('');
-    }
+    const timerEl = document.getElementById('timerNum');
+    timerEl.textContent = s.game.status === 'playing' ? s.game.timeLeft + 's' : '--';
+    timerEl.classList.toggle('low', s.game.status === 'playing' && s.game.timeLeft <= 10);
+
+    R.renderLeaderboard(document.getElementById('leaderboard'), s.leaderboard, 'No scores yet.');
+    R.renderFeed(document.getElementById('feed'), s.feed, 20);
   });
 
+  // --- drawer ---
+  const drawer = document.getElementById('drawer');
+  const backdrop = document.getElementById('drawerBackdrop');
+  function openDrawer(){ drawer.classList.add('open'); backdrop.classList.add('open'); }
+  function closeDrawer(){ drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+  document.getElementById('settingsBtn').onclick = openDrawer;
+  document.getElementById('closeDrawerBtn').onclick = closeDrawer;
+  backdrop.onclick = closeDrawer;
+
+  // --- tabs ---
+  const tabLeaderboardBtn = document.getElementById('tabLeaderboardBtn');
+  const tabFeedBtn = document.getElementById('tabFeedBtn');
+  tabLeaderboardBtn.onclick = () => {
+    tabLeaderboardBtn.classList.add('active'); tabFeedBtn.classList.remove('active');
+    document.getElementById('tabLeaderboard').classList.add('active');
+    document.getElementById('tabFeed').classList.remove('active');
+  };
+  tabFeedBtn.onclick = () => {
+    tabFeedBtn.classList.add('active'); tabLeaderboardBtn.classList.remove('active');
+    document.getElementById('tabFeed').classList.add('active');
+    document.getElementById('tabLeaderboard').classList.remove('active');
+  };
+
+  // --- controls ---
   document.getElementById('connectBtn').onclick = () => {
     const username = document.getElementById('usernameInput').value.trim();
     socket.emit('host:connectTikTok', { username });
+    closeDrawer();
   };
   document.getElementById('disconnectBtn').onclick = () => socket.emit('host:disconnectTikTok');
   document.getElementById('testModeBtn').onclick = () => socket.emit('host:toggleTestMode');
-
-  document.querySelectorAll('[data-diff]').forEach(b => {
-    b.onclick = () => socket.emit('host:setDifficulty', { difficulty: b.dataset.diff });
-  });
+  document.querySelectorAll('[data-diff]').forEach(b => { b.onclick = () => socket.emit('host:setDifficulty', { difficulty: b.dataset.diff }); });
 
   document.getElementById('startBtn').onclick = () => socket.emit('host:startGame');
-  document.getElementById('nextBtn').onclick = () => socket.emit('host:nextWord');
+  document.getElementById('nextBtn').onclick = () => { socket.emit('host:nextWord'); closeDrawer(); };
   document.getElementById('hintBtn').onclick = () => socket.emit('host:revealHint');
   document.getElementById('resetLeaderboardBtn').onclick = () => {
     if (confirm('Reset the leaderboard to zero for everyone?')) socket.emit('host:resetLeaderboard');
+    closeDrawer();
   };
 
   function sendHostMessage(){
@@ -266,9 +340,7 @@
     input.value = '';
   }
   document.getElementById('hostSendBtn').onclick = sendHostMessage;
-  document.getElementById('hostMessageInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendHostMessage();
-  });
+  document.getElementById('hostMessageInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendHostMessage(); });
 </script>
 </body>
 </html>

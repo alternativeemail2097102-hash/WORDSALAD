@@ -1,15 +1,28 @@
 # WordSalad Live — TikTok LIVE Word Game
 
-A fully-automated themed word-search game for TikTok LIVE, built to
-match the real **wordsalad.online** game: each round has a **theme**
-(like "Pizza Toppings" or "Greek Mythology") and a grid of letters with
-several theme-related words hidden inside it. Your viewers find the
-hidden words by typing them as normal TikTok comments — different
-viewers can find different words in the same round, so the whole chat
-works together to clear the board. Correct guesses are highlighted
-live on the grid with the same connect-the-letters "highlighter line"
-effect the original game uses, and a live top-10 leaderboard tracks
-who's found the most.
+A fully-automated themed word-search game for TikTok LIVE, verified
+against the real **wordsalad.online** game (official app description +
+reviews): each round has a **theme** (like "Pizza Toppings" or "Greek
+Mythology") and a grid of letters with several theme-related words
+hidden inside it. Your viewers find the hidden words by typing them as
+normal TikTok comments — different viewers can find different words in
+the same round, so the whole chat works together to clear the board.
+
+Matching the real game exactly:
+- A letter that's shared between two hidden words stays on the board
+  until **both** words are found — it only disappears once nothing
+  else needs it, exactly like the original.
+- Found words flash across their letters in sequence (like the
+  original's swipe trace) before falling away.
+- Word length increases with difficulty: **Easy = 3–5 letters,
+  Medium = 5–7, Hard = 7–9** — a real difficulty curve, not just a
+  label.
+- Clearing the whole board triggers a colorful celebration flourish,
+  the same kind of flourish the real game uses on some puzzles.
+
+Scoring is intentionally small (single digits to low twenties per
+word) rather than triple-digit point values, so the leaderboard stays
+readable and doesn't feel like it's fighting the puzzle for attention.
 
 This README assumes **zero coding experience**. Follow it top to bottom.
 
@@ -18,17 +31,23 @@ This README assumes **zero coding experience**. Follow it top to bottom.
 ## What you're getting
 
 - `server.js` — the whole backend (connects to TikTok, runs the game)
-- `puzzles.js` — the puzzle bank: thmes and their hidden words, split
-  by difficulty (easy/medium/hard)
+- `puzzles.js` — the puzzle bank: themes and their hidden words, split
+  by difficulty, with word length increasing at each level
 - `grid-generator.js` — builds a real word-search grid for each
   puzzle, placing every word along a straight line of connected
-  letters (just like the real game) so answers can be highlighted
-  accurately when found
+  letters (just like the real game)
 - `public/theme.css` — the shared visual design system (colors, type,
-  buttons) used by both screens
-- `public/host.html` — **your** private control panel (use this yourself)
-- `public/display.html` — the big screen your **audience** sees (put this
-  on your stream as a browser source / second window)
+  buttons, animations) used by every screen
+- `public/game-render.js` — the shared game-rendering logic (grid,
+  answers, leaderboard, feed) so every screen behaves identically
+- `public/host.html` — **the one-page app** — open this on your phone.
+  It has the full game board plus your controls, all on one screen
+  with no scrolling, so a single phone is all you need to both host
+  and broadcast.
+- `public/display.html` — an optional clean, controls-free version of
+  the same board, only useful if you happen to have a *second* screen
+  (a monitor, tablet, or OBS browser source) to show your audience —
+  you do not need this if you're on one phone.
 - Everything else is configuration Render/GitHub need
 
 You will never open or edit any of these files yourself. You'll just
@@ -38,15 +57,31 @@ upload the folder and click a few buttons.
 
 ## The design
 
-The Display Screen uses a distinct dark "garden at dusk" palette — deep
-pine backgrounds with three purposeful accent colors: leafy green for
-found words, warm citrus for the theme title and scores, and soft
-berry for host messages and alerts — paired with a characterful serif
-(Fraunces) for the theme title and a clean modern sans (Manrope) for
-everything else. When a word is found, its letters pulse and a
-highlighter-style line draws itself across the grid connecting them,
-the same visual signature the real WordSalad/NYT Strands genre is
-known for.
+The board uses a distinct dark "garden at dusk" palette — deep pine
+backgrounds with three purposeful accent colors: leafy green for found
+words, warm citrus for the theme title and scores, and soft berry for
+host messages and alerts — paired with a characterful serif (Fraunces)
+for the theme title and a clean modern sans (Manrope) for everything
+else. When a word is found, its letters flash green in sequence
+tracing the word's path, then any letters no longer needed by any
+other hidden word fall away, revealing the board underneath — exactly
+the "watch the letters fall away" mechanic the real game is known for.
+Clearing a whole puzzle triggers a brief colorful celebration.
+
+---
+
+## One phone is all you need
+
+Everything — the game board your audience sees, your connection
+status, round controls, and live diagnostics — lives on **one page**
+(`host.html`), sized to fit a single phone screen with **no
+scrolling**. Advanced controls (connecting to TikTok, difficulty,
+diagnostics) live behind the small **⚙** button in the top-right,
+which slides up a panel without leaving the page — so if you're
+broadcasting this screen directly (e.g. via your phone's screen-share
+into TikTok LIVE, or propping the phone next to your camera), your
+audience always sees the board, and you tap ⚙ only when you need to
+change a setting.
 
 ---
 
@@ -123,63 +158,65 @@ When it finishes, Render gives you a web address that looks like:
 
 ---
 
-## Part 5 — Open your two screens
+## Part 5 — Open your game
 
-Your game has **two screens**, both live at your Render address:
+Your Render address gives you one main page:
 
-- **Host Panel (for you):**
-  `https://YOUR-RENDER-ADDRESS.onrender.com/host.html`
-  Open this on your phone or laptop. This is where you connect to
-  TikTok, start rounds, pick difficulty, and see diagnostics.
+- **`https://YOUR-RENDER-ADDRESS.onrender.com/host.html`**
+  Open this on your phone. This is the whole game — the board, the
+  theme, the timer, the leaderboard, and your controls (behind the ⚙
+  icon) — all on one screen with no scrolling. This is what you'll use
+  every stream, and it's the screen you broadcast.
 
-- **Display Screen (for your audience):**
-  `https://YOUR-RENDER-ADDRESS.onrender.com/display.html`
-  Open this on the screen you're actually broadcasting (e.g. as a
-  Browser Source in your streaming software, or full-screen on a
-  second monitor/tablet propped next to your camera). This shows the
-  scrambled word, timer, leaderboard, and live comments.
+If you ever have a *second* device (a laptop, tablet, or a capture
+setup like OBS) and want a clean, controls-free version of the board
+for your audience specifically, `display.html` at the same address is
+that plain screen — but it's optional, not required.
 
-Bookmark both links. You'll use them every stream.
+Bookmark the host.html link. You'll use it every stream.
 
 ---
 
 ## Part 6 — Using it, step by step
 
-1. **Before going live**, open the Host Panel and tap **"🧪 Test Mode"**.
-   This simulates fake viewers commenting — no TikTok login needed — so
-   you can confirm everything works: press **Start Puzzle**, watch a
-   theme and grid appear, watch fake guesses find words on the Display
-   Screen, and confirm the leaderboard updates. Tap **Test Mode** again
-   to stop it.
-2. **When you go live on TikTok**, open the Host Panel, type your TikTok
-   username into the box (no `@`), and tap **Connect**. The status pill
-   will show what's happening. If it fails, it automatically retries a
-   couple of times before showing a plain-English reason.
-3. Pick a **difficulty** (Easy / Medium / Hard) — this controls the grid
-   size and how many/how long the hidden words are.
-4. Tap **▶ Start Puzzle**. The Display Screen shows the theme and the
-   letter grid to your audience; they type a word they think is hidden
-   in the grid as a TikTok comment. Different viewers can find
-   different words in the same round — the whole chat works together.
-5. As each word is found, it lights up green on the grid with a
-   highlighter line connecting its letters, and its answer slot fills
-   in below the grid. The round ends automatically once all the words
-   are found (or time runs out, which reveals whatever's left), and the
-   next puzzle starts on its own a few seconds later — you can also tap
-   **⏭ Next Puzzle** any time to skip immediately.
-6. Tap **💡 Reveal Hint** any time to reveal one extra letter of a
-   still-hidden word — useful if chat is stuck.
-7. Use the **message box at the bottom of the Host Panel** to type
-   anything yourself (answer a question, make an announcement) — it
-   appears in the live comment feed on the Display Screen labeled HOST.
-8. The **Top 10 Leaderboard** updates live on both screens. Tap
-   **Reset Leaderboard** to start fresh for a new stream.
+1. **Before going live**, open the game and tap **"🧪 Test Mode"**
+   inside the ⚙ settings panel. This simulates fake viewers commenting
+   — no TikTok login needed — so you can confirm everything works: tap
+   **▶ Start**, watch a theme and grid appear, watch fake guesses find
+   words on the board, and confirm the leaderboard updates. Tap
+   **Test Mode** again to stop it.
+2. **When you go live on TikTok**, tap ⚙, type your TikTok username
+   into the box (no `@`), and tap **Connect**. The status pill at the
+   top will show what's happening. If it fails, it automatically
+   retries a couple of times before showing a plain-English reason.
+3. In the same ⚙ panel, pick a **difficulty** (Easy / Medium / Hard) —
+   this controls the grid size and word length (Easy = 3–5 letters,
+   Medium = 5–7, Hard = 7–9).
+4. Tap **▶ Start**. The board shows the theme and letter grid; your
+   audience types a word they think is hidden in the grid as a TikTok
+   comment. Different viewers can find different words in the same
+   round — the whole chat works together.
+5. As each word is found, its letters flash green in sequence tracing
+   the word, then fall away once nothing else needs them — a letter
+   shared by two words stays until *both* are found, exactly like the
+   real game. The round ends automatically once every word is found
+   (with a small celebration) or time runs out (revealing whatever's
+   left), and the next puzzle starts on its own a few seconds later —
+   you can also open ⚙ and tap **⏭ Skip to Next Puzzle** any time.
+6. Tap **💡** any time to reveal one extra letter of a still-hidden
+   word — useful if chat is stuck.
+7. Use the **message box at the bottom** to type anything yourself
+   (answer a question, make an announcement) — it appears in the
+   Comments tab labeled HOST.
+8. Switch between the **🏆 Leaderboard** and **💬 Comments** tabs above
+   the message box to see either at a glance. Reset the leaderboard
+   any time from the ⚙ panel.
 
 ---
 
 ## Understanding the diagnostics (so you never need to "debug")
 
-The Host Panel has a **"Live Diagnostics"** box right below the connect
+The ⚙ settings panel has a **"Live diagnostics"** section right below the connect
 button:
 
 - **Events received** — a number that goes up every single time a chat
@@ -198,7 +235,7 @@ button:
   you want to see, in plain view, exactly what the game is receiving.
 
 If anything goes wrong elsewhere, a small message banner pops up at the
-top of the Host Panel in plain English — you never need to check
+top of the screen in plain English — you never need to check
 Render's server logs.
 
 ---
@@ -220,7 +257,7 @@ Render's server logs.
   reading LIVE comments. It's the same approach almost all TikTok LIVE
   games and chat-readers use, but TikTok could change something on
   their end at any time that requires the underlying library to be
-  updated — if the Host Panel ever shows a connection error you can't
+  updated — if the status pill ever shows a connection error you can't
   resolve, that's the most likely cause, and it's an update to the
   `tiktok-live-connector` dependency (not your setup) that fixes it.
 
@@ -230,6 +267,6 @@ Render's server logs.
 
 Because **Test Mode** needs no TikTok login and no external connection,
 it's your safety net: any time you (or I) change something about the
-game, open the Host Panel, tap Test Mode, and run through a full round
+game, open the game, tap Test Mode in the ⚙ panel, and run through a full round
 before ever going live with it. If it behaves correctly in Test Mode,
 it will behave correctly on a real stream.
