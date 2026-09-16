@@ -41,6 +41,12 @@
   .progress-dot.done{ background:var(--leaf); border-color:var(--leaf); }
   .timer{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; color:var(--ink); flex:none; min-width:30px; text-align:right; }
   .timer.low{ color:var(--berry); }
+  .combo-badge{
+    font-size:11px; font-weight:800; color:var(--citrus); background:rgba(255,184,77,0.14);
+    border:1px solid var(--citrus); border-radius:999px; padding:2px 8px; flex:none;
+    opacity:0; transform:scale(.85); transition:opacity .25s ease, transform .25s ease;
+  }
+  .combo-badge.show{ opacity:1; transform:scale(1); }
 
   /* ---- grid (majority of screen) ---- */
   .grid-wrap{ flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; padding:2px 14px; }
@@ -147,6 +153,7 @@
 <div class="theme-row">
   <div class="theme-title" id="themeTitle">— tap ⚙ then Start —</div>
   <div class="progress-dots" id="progressDots"></div>
+  <div class="combo-badge" id="comboBadge"></div>
   <div class="timer" id="timerNum">--</div>
 </div>
 
@@ -200,6 +207,11 @@
     <button class="btn-ghost" data-diff="hard">Hard</button>
   </div>
 
+  <h2>Sound effects</h2>
+  <div class="row">
+    <button class="btn-ghost btn-block" id="muteBtn">🔊 Sound: On</button>
+  </div>
+
   <h2>Round controls</h2>
   <div class="row">
     <button class="btn-ghost btn-block" id="nextBtn">⏭ Skip to Next Puzzle</button>
@@ -226,6 +238,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/game-render.js"></script>
+<script src="/audio.js"></script>
 <script>
   function setVH(){ document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px'); }
   window.addEventListener('resize', setVH);
@@ -254,8 +267,31 @@
     }
   });
 
+  let soundOn = true;
+  document.getElementById('muteBtn').onclick = (e) => {
+    soundOn = !soundOn;
+    e.target.textContent = soundOn ? '🔊 Sound: On' : '🔇 Sound: Off';
+    if (soundOn) WordSaladAudio.unlock();
+  };
+
   socket.on('puzzleComplete', (info) => {
-    if (info.cleared) R.celebrate(document.getElementById('gridSquare'));
+    if (info.cleared) {
+      R.celebrate(document.getElementById('gridSquare'));
+      if (soundOn) WordSaladAudio.playComplete();
+    }
+  });
+
+  let comboBadgeTimeout = null;
+  socket.on('wordFound', (info) => {
+    if (soundOn) WordSaladAudio.playFind(info.comboCount);
+    if (info.multiplier > 1) {
+      if (soundOn) WordSaladAudio.playCombo();
+      const badge = document.getElementById('comboBadge');
+      badge.textContent = '🔥 x' + info.multiplier;
+      badge.classList.add('show');
+      clearTimeout(comboBadgeTimeout);
+      comboBadgeTimeout = setTimeout(() => badge.classList.remove('show'), 2200);
+    }
   });
 
   socket.on('state', (s) => {
@@ -316,15 +352,16 @@
 
   // --- controls ---
   document.getElementById('connectBtn').onclick = () => {
+    WordSaladAudio.unlock();
     const username = document.getElementById('usernameInput').value.trim();
     socket.emit('host:connectTikTok', { username });
     closeDrawer();
   };
   document.getElementById('disconnectBtn').onclick = () => socket.emit('host:disconnectTikTok');
-  document.getElementById('testModeBtn').onclick = () => socket.emit('host:toggleTestMode');
+  document.getElementById('testModeBtn').onclick = () => { WordSaladAudio.unlock(); socket.emit('host:toggleTestMode'); };
   document.querySelectorAll('[data-diff]').forEach(b => { b.onclick = () => socket.emit('host:setDifficulty', { difficulty: b.dataset.diff }); });
 
-  document.getElementById('startBtn').onclick = () => socket.emit('host:startGame');
+  document.getElementById('startBtn').onclick = () => { WordSaladAudio.unlock(); socket.emit('host:startGame'); };
   document.getElementById('nextBtn').onclick = () => { socket.emit('host:nextWord'); closeDrawer(); };
   document.getElementById('hintBtn').onclick = () => socket.emit('host:revealHint');
   document.getElementById('resetLeaderboardBtn').onclick = () => {

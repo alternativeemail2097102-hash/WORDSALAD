@@ -83,10 +83,22 @@ const state = {
     timeLimitSeconds: 90,
     timeLeft: 90,
     usedThemes: [],
+    comboCount: 0,          // consecutive finds within the combo window
+    lastFindAt: 0,
+    bestCombo: 0,
   },
   leaderboard: {},          // { username: { score, name } }
   feed: [],                 // recent chat feed, most recent first, capped
 };
+
+const COMBO_WINDOW_SECONDS = 14;
+
+function comboMultiplier(count) {
+  if (count >= 4) return 1.5;
+  if (count === 3) return 1.3;
+  if (count === 2) return 1.15;
+  return 1;
+}
 
 let roundTimer = null;
 let autoAdvanceTimer = null;
@@ -127,6 +139,7 @@ function buildPublicState() {
       wordsFound: g.words.filter((w) => w.found).length,
       wordsTotal: g.words.length,
       clearedGrid: g.grid ? computeClearedGrid(g.gridSize, g.words) : null,
+      combo: { count: g.comboCount, multiplier: comboMultiplier(g.comboCount) },
       timeLeft: g.timeLeft,
       timeLimitSeconds: g.timeLimitSeconds,
     },
@@ -201,6 +214,9 @@ function startRound() {
   state.game.grid = grid;
   state.game.hintsUsed = 0;
   state.game.roundStartedAt = Date.now();
+  state.game.comboCount = 0;
+  state.game.lastFindAt = 0;
+  state.game.bestCombo = 0;
   state.game.timeLimitSeconds = settings.timeLimit;
   state.game.timeLeft = settings.timeLimit;
   state.game.words = puzzle.words.map((word) => {
@@ -270,11 +286,12 @@ function endRound(reason) {
       time: Date.now(),
     });
   } else {
-    pushFeed({ type: "win", text: `🎉 Puzzle cleared! Great teamwork, chat!`, time: Date.now() });
+    const comboNote = g.bestCombo >= 2 ? ` (best combo x${comboMultiplier(g.bestCombo)})` : "";
+    pushFeed({ type: "win", text: `🎉 Puzzle cleared! Great teamwork, chat!${comboNote}`, time: Date.now() });
   }
 
   broadcastState();
-  io.emit("puzzleComplete", { cleared: reason === "cleared" });
+  io.emit("puzzleComplete", { cleared: reason === "cleared", bestCombo: g.bestCombo });
 
   // Automatically move on after a short pause so the show keeps
   // flowing; the host can also press "Next Puzzle" any time sooner.
@@ -298,8 +315,17 @@ function handleGuess(username, displayName, rawText) {
   if (!target) return false;
 
   const settings = DIFFICULTY_SETTINGS[g.difficulty] || DIFFICULTY_SETTINGS.easy;
-  const elapsedSeconds = Math.floor((Date.now() - g.roundStartedAt) / 1000);
-  const points = computeWordScore(settings, target.word, g.hintsUsed, elapsedSeconds);
+  const now = Date.now();
+  const elapsedSeconds = Math.floor((now - g.roundStartedAt) / 1000);
+  const basePoints = computeWordScore(settings, target.word, g.hintsUsed, elapsedSeconds);
+
+  // Combo: consecutive finds within the window build a streak multiplier.
+  const withinWindow = g.lastFindAt && (now - g.lastFindAt) / 1000 <= COMBO_WINDOW_SECONDS;
+  g.comboCount = withinWindow ? g.comboCount + 1 : 1;
+  g.lastFindAt = now;
+  g.bestCombo = Math.max(g.bestCombo, g.comboCount);
+  const multiplier = comboMultiplier(g.comboCount);
+  const points = Math.round(basePoints * multiplier);
 
   target.found = true;
   target.foundBy = displayName || username;
@@ -309,7 +335,9 @@ function handleGuess(username, displayName, rawText) {
   state.leaderboard[username].score += points;
   state.leaderboard[username].name = displayName || username;
 
-  pushFeed({ type: "win", text: `✅ ${target.foundBy} found "${target.word}" (+${points} pts)`, time: Date.now() });
+  const comboTag = multiplier > 1 ? ` 🔥 combo x${multiplier}` : "";
+  pushFeed({ type: "win", text: `✅ ${target.foundBy} found "${target.word}" (+${points} pts)${comboTag}`, time: Date.now() });
+  io.emit("wordFound", { word: target.word, foundBy: target.foundBy, points, comboCount: g.comboCount, multiplier });
 
   const allFound = g.words.every((w) => w.found);
   if (allFound) {

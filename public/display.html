@@ -24,6 +24,12 @@
   .progress-dot.done{ background:var(--leaf); border-color:var(--leaf); }
   .timer{ font-family:'Fraunces',serif; font-weight:600; font-size:20px; color:var(--ink); min-width:44px; text-align:right; }
   .timer.low{ color:var(--berry); }
+  .combo-badge{
+    font-size:13px; font-weight:800; color:var(--citrus); background:rgba(255,184,77,0.14);
+    border:1px solid var(--citrus); border-radius:999px; padding:3px 10px;
+    opacity:0; transform:scale(.85); transition:opacity .25s ease, transform .25s ease;
+  }
+  .combo-badge.show{ opacity:1; transform:scale(1); }
 
   .grid-wrap{ position:relative; width:min(100%, 62vh); margin:0 auto; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; }
   .grid-square{ position:relative; width:100%; aspect-ratio:1/1; max-height:100%; }
@@ -50,6 +56,7 @@
 
   <div class="topbar">
     <div class="brand">Word<em>Salad</em> Live</div>
+    <button class="pill" id="enableSoundBtn" style="border:none; cursor:pointer;">🔈 Tap for sound</button>
     <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
   </div>
 
@@ -62,6 +69,7 @@
         </div>
         <div class="progress-info">
           <div class="progress-dots" id="progressDots"></div>
+          <div class="combo-badge" id="comboBadge"></div>
           <div class="timer" id="timerNum">--</div>
         </div>
       </div>
@@ -90,6 +98,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/game-render.js"></script>
+<script src="/audio.js"></script>
 <script>
   function setVH(){ document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px'); }
   window.addEventListener('resize', setVH);
@@ -99,8 +108,32 @@
   const socket = io();
   const R = WordSaladRender;
 
+  let soundOn = false;
+  const enableSoundBtn = document.getElementById('enableSoundBtn');
+  enableSoundBtn.onclick = () => {
+    WordSaladAudio.unlock();
+    soundOn = true;
+    enableSoundBtn.style.display = 'none';
+  };
+
+  let comboBadgeTimeout = null;
+  socket.on('wordFound', (info) => {
+    if (soundOn) WordSaladAudio.playFind(info.comboCount);
+    if (info.multiplier > 1) {
+      if (soundOn) WordSaladAudio.playCombo();
+      const badge = document.getElementById('comboBadge');
+      badge.textContent = '🔥 x' + info.multiplier;
+      badge.classList.add('show');
+      clearTimeout(comboBadgeTimeout);
+      comboBadgeTimeout = setTimeout(() => badge.classList.remove('show'), 2200);
+    }
+  });
+
   socket.on('puzzleComplete', (info) => {
-    if (info.cleared) R.celebrate(document.getElementById('gridSquare'));
+    if (info.cleared) {
+      R.celebrate(document.getElementById('gridSquare'));
+      if (soundOn) WordSaladAudio.playComplete();
+    }
   });
 
   socket.on('state', (s) => {

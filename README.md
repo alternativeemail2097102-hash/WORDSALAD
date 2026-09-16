@@ -24,6 +24,15 @@ Scoring is intentionally small (single digits to low twenties per
 word) rather than triple-digit point values, so the leaderboard stays
 readable and doesn't feel like it's fighting the puzzle for attention.
 
+There's also a **combo system**: words found in quick succession (within
+14 seconds of each other) build a streak that boosts points — up to a
+×1.5 multiplier at a 4+ streak — shown as a "🔥 x1.5" badge next to the
+timer. A short chime plays on every find (a bigger one on a combo, and
+a fanfare when the whole board clears) — this is generated in the
+browser itself, so there are no sound files to upload. There's a
+🔊 Sound On/Off toggle in the ⚙ settings panel if you'd rather it stay
+quiet.
+
 This README assumes **zero coding experience**. Follow it top to bottom.
 
 ---
@@ -40,6 +49,8 @@ This README assumes **zero coding experience**. Follow it top to bottom.
   buttons, animations) used by every screen
 - `public/game-render.js` — the shared game-rendering logic (grid,
   answers, leaderboard, feed) so every screen behaves identically
+- `public/audio.js` — tiny synthesized sound effects (no audio files
+  needed) for finds, combos, and puzzle-complete
 - `public/host.html` — **the one-page app** — open this on your phone.
   It has the full game board plus your controls, all on one screen
   with no scrolling, so a single phone is all you need to both host
