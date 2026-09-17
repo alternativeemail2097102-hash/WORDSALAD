@@ -6,93 +6,82 @@
 <title>WordSalad Live — Display</title>
 <link rel="stylesheet" href="/theme.css">
 <style>
-  body{ height: calc(var(--vh) * 100); overflow:hidden; display:flex; flex-direction:column; }
-  .topbar{ display:flex; justify-content:space-between; align-items:center; padding:16px 26px 6px; flex:none; }
-  .brand{ font-size:20px; font-weight:600; }
+  html,body{ height:100%; overflow:hidden; }
+  body{ height: calc(var(--vh) * 100); display:flex; flex-direction:column; }
+  .topbar{ flex:none; display:flex; justify-content:space-between; align-items:center; padding:14px 22px 6px; gap:10px; }
+  .brand{ font-size:19px; font-weight:600; flex:none; }
   .brand em{ font-style:normal; color:var(--citrus); }
+  .icon-btn{
+    background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+    border-radius:10px; width:36px; height:36px; padding:0; flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+  }
+  .icon-btn.active{ border-color:var(--citrus); color:var(--citrus); }
+  .icon-group{ display:flex; gap:8px; flex:none; }
 
-  .layout{ flex:1; display:flex; gap:18px; padding:6px 26px 22px; min-height:0; }
-  .stage{ flex:1.7; display:flex; flex-direction:column; min-width:0; min-height:0; }
-  .side{ flex:1; max-width:360px; display:flex; flex-direction:column; gap:14px; min-height:0; }
-
-  .theme-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
-  .theme-label{ font-size:12px; color:var(--ink-faint); }
-  .theme-title{ font-size:clamp(22px, 3vw, 34px); font-weight:600; color:var(--citrus); line-height:1.1; }
+  .theme-row{ flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 24px 6px; flex-wrap:wrap; }
+  .theme-title{ font-size:clamp(20px, 3vw, 30px); font-weight:600; color:var(--citrus); font-family:'Fraunces',serif; }
   .progress-info{ display:flex; align-items:center; gap:14px; }
-  .progress-dots{ display:flex; gap:6px; }
+  .progress-dots{ display:flex; flex-wrap:wrap; gap:6px; max-width:160px; justify-content:flex-end; }
   .progress-dot{ width:11px; height:11px; border-radius:50%; background:var(--surface-2); border:1px solid var(--line); }
   .progress-dot.done{ background:var(--leaf); border-color:var(--leaf); }
-  .timer{ font-family:'Fraunces',serif; font-weight:600; font-size:20px; color:var(--ink); min-width:44px; text-align:right; }
+  .timer{ font-family:'Fraunces',serif; font-weight:600; font-size:19px; color:var(--ink); min-width:40px; text-align:right; }
   .timer.low{ color:var(--berry); }
-  .combo-badge{
-    font-size:13px; font-weight:800; color:var(--citrus); background:rgba(255,184,77,0.14);
-    border:1px solid var(--citrus); border-radius:999px; padding:3px 10px;
-    opacity:0; transform:scale(.85); transition:opacity .25s ease, transform .25s ease;
-  }
-  .combo-badge.show{ opacity:1; transform:scale(1); }
 
-  .grid-wrap{ position:relative; width:min(100%, 62vh); margin:0 auto; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; }
-  .grid-square{ position:relative; width:100%; aspect-ratio:1/1; max-height:100%; }
+  .grid-wrap{ flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; padding:6px 24px; }
+  .grid-square{ position:relative; height:100%; max-height:100%; width:auto; aspect-ratio:1/1; max-width:100%; }
   .grid{ position:absolute; inset:0; display:grid; gap:5px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:10px; }
   .cell{ font-size:clamp(11px, 2.6vw, 22px); border-radius:8px; }
 
-  .answers{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; }
-  .instructions{ text-align:center; color:var(--ink-faint); font-size:14px; margin-top:12px; }
+  .answers-strip{ flex:none; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; padding:10px 24px; }
+  .instructions{ flex:none; text-align:center; color:var(--ink-faint); font-size:13px; padding:0 24px 12px; }
   .instructions b{ color:var(--sky); font-weight:700; }
-
-  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px; display:flex; flex-direction:column; min-height:0; }
-  .panel h2{ font-size:13px; margin:0 0 8px; color:var(--ink-dim); font-weight:700; }
-  .leaderboard{ flex:1; overflow:hidden; }
-  .feed-panel{ flex:2; overflow-y:auto; }
-
-  @media (max-width: 800px){
-    .layout{ flex-direction:column; }
-    .side{ max-width:none; flex-direction:row; }
-    .panel{ flex:1; }
-  }
 </style>
 </head>
 <body>
 
+  <div class="host-banner" id="hostBanner"><div class="host-banner-inner"><b>HOST:</b><span id="hostBannerText"></span></div></div>
+
   <div class="topbar">
     <div class="brand">Word<em>Salad</em> Live</div>
-    <button class="pill" id="enableSoundBtn" style="border:none; cursor:pointer;">🔈 Tap for sound</button>
     <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
+    <div class="icon-group">
+      <button class="icon-btn" id="leaderboardBtn" title="Leaderboard">🏆</button>
+      <button class="icon-btn" id="fullscreenBtn" title="Fullscreen">⛶</button>
+      <button class="icon-btn" id="enableSoundBtn" title="Enable sound">🔈</button>
+    </div>
   </div>
 
-  <div class="layout">
-    <div class="stage">
-      <div class="theme-row">
-        <div>
-          <div class="theme-label">Today's theme</div>
-          <div class="theme-title display-font" id="themeTitle">— waiting for host —</div>
-        </div>
-        <div class="progress-info">
-          <div class="progress-dots" id="progressDots"></div>
-          <div class="combo-badge" id="comboBadge"></div>
-          <div class="timer" id="timerNum">--</div>
-        </div>
-      </div>
+  <div class="ticker-wrap" id="tickerOuter">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
 
-      <div class="grid-wrap">
-        <div class="grid-square" id="gridSquare">
-          <div class="grid" id="grid"></div>
-        </div>
-      </div>
-
-      <div class="answers" id="answers"></div>
-      <div class="instructions">Type your guess in the <b>TikTok LIVE comments</b> to find a word!</div>
+  <div class="theme-row">
+    <div class="theme-title" id="themeTitle">— waiting for host —</div>
+    <div class="progress-info">
+      <div class="progress-dots" id="progressDots"></div>
+      <div class="combo-badge" id="comboBadge"></div>
+      <div class="timer" id="timerNum">--</div>
     </div>
+  </div>
 
-    <div class="side">
-      <div class="panel leaderboard">
-        <h2>Top 10</h2>
-        <div id="leaderboard"><div class="empty-hint">No scores yet — be the first!</div></div>
-      </div>
-      <div class="panel feed-panel">
-        <h2>Live comments</h2>
-        <div class="feed-scroll" id="feed" style="display:flex; flex-direction:column-reverse; gap:7px;"></div>
-      </div>
+  <div class="grid-wrap" id="gridWrap">
+    <div class="grid-square" id="gridSquare">
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <div class="answers-strip" id="answers"></div>
+  <div class="instructions">Type your guess in the <b>TikTok LIVE comments</b> to find a word!</div>
+
+  <div class="recap-overlay" id="recapOverlay">
+    <div class="recap-card">
+      <button class="icon-btn recap-close" id="recapCloseBtn">✕</button>
+      <div class="recap-title" id="recapTitle">🏆 Leaderboard</div>
+      <div class="recap-sub" id="recapSub"></div>
+      <div id="recapBody"></div>
+      <hr class="recap-divider" id="recapDivider" style="display:none;">
+      <div id="recapLeaderboard"></div>
     </div>
   </div>
 
@@ -107,14 +96,75 @@
 
   const socket = io();
   const R = WordSaladRender;
-
+  let latestLeaderboard = [];
   let soundOn = false;
+
+  // --- sound (needs one tap first, per browser autoplay rules) ---
   const enableSoundBtn = document.getElementById('enableSoundBtn');
   enableSoundBtn.onclick = () => {
     WordSaladAudio.unlock();
-    soundOn = true;
-    enableSoundBtn.style.display = 'none';
+    soundOn = !soundOn;
+    enableSoundBtn.classList.toggle('active', soundOn);
+    enableSoundBtn.textContent = soundOn ? '🔊' : '🔈';
   };
+
+  // --- fullscreen ---
+  const fsBtn = document.getElementById('fullscreenBtn');
+  function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function updateFsIcon(){ fsBtn.classList.toggle('active', isFullscreen()); }
+  fsBtn.onclick = () => {
+    if (isFullscreen()) {
+      (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document);
+    } else {
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) req.call(el).catch(() => {});
+    }
+  };
+  document.addEventListener('fullscreenchange', updateFsIcon);
+  document.addEventListener('webkitfullscreenchange', updateFsIcon);
+
+  // --- leaderboard overlay ---
+  let overlayAutoHideTimer = null;
+  function showOverlay(opts){
+    document.getElementById('recapTitle').textContent = opts.title;
+    document.getElementById('recapSub').textContent = opts.sub || '';
+    document.getElementById('recapBody').innerHTML = opts.recapHtml || '';
+    document.getElementById('recapDivider').style.display = opts.recapHtml ? '' : 'none';
+    R.renderLeaderboard(document.getElementById('recapLeaderboard'), opts.leaderboard || [], 'No scores yet — be the first!');
+    document.getElementById('recapOverlay').classList.add('show');
+    clearTimeout(overlayAutoHideTimer);
+    if (opts.autoHideMs) overlayAutoHideTimer = setTimeout(hideOverlay, opts.autoHideMs);
+  }
+  function hideOverlay(){ document.getElementById('recapOverlay').classList.remove('show'); clearTimeout(overlayAutoHideTimer); }
+  document.getElementById('recapCloseBtn').onclick = hideOverlay;
+  document.getElementById('leaderboardBtn').onclick = () => {
+    showOverlay({ title: '🏆 Leaderboard', sub: '', recapHtml: '', leaderboard: latestLeaderboard, autoHideMs: null });
+  };
+
+  let hostBannerTimeout = null;
+  socket.on('hostMessage', (info) => {
+    document.getElementById('hostBannerText').textContent = info.text;
+    const banner = document.getElementById('hostBanner');
+    banner.classList.add('show');
+    clearTimeout(hostBannerTimeout);
+    hostBannerTimeout = setTimeout(() => banner.classList.remove('show'), 6000);
+  });
+
+  socket.on('puzzleComplete', (info) => {
+    if (info.cleared) {
+      R.celebrate(document.getElementById('gridSquare'));
+      if (soundOn) WordSaladAudio.playComplete();
+    }
+    const title = info.cleared ? '🎉 Puzzle Cleared!' : "⏱️ Time's Up!";
+    const sub = info.theme ? 'Theme: ' + info.theme : '';
+    showOverlay({
+      title, sub,
+      recapHtml: R.buildRecapRows(info.recap),
+      leaderboard: info.leaderboard,
+      autoHideMs: (info.leaderboardDisplaySeconds || 3) * 1000,
+    });
+  });
 
   let comboBadgeTimeout = null;
   socket.on('wordFound', (info) => {
@@ -126,13 +176,6 @@
       badge.classList.add('show');
       clearTimeout(comboBadgeTimeout);
       comboBadgeTimeout = setTimeout(() => badge.classList.remove('show'), 2200);
-    }
-  });
-
-  socket.on('puzzleComplete', (info) => {
-    if (info.cleared) {
-      R.celebrate(document.getElementById('gridSquare'));
-      if (soundOn) WordSaladAudio.playComplete();
     }
   });
 
@@ -156,8 +199,8 @@
     timerEl.textContent = s.game.status === 'playing' ? s.game.timeLeft + 's' : '--';
     timerEl.classList.toggle('low', s.game.status === 'playing' && s.game.timeLeft <= 10);
 
-    R.renderLeaderboard(document.getElementById('leaderboard'), s.leaderboard, 'No scores yet — be the first!');
-    R.renderFeed(document.getElementById('feed'), s.feed, 25);
+    latestLeaderboard = s.leaderboard;
+    R.renderTicker(document.getElementById('tickerOuter'), document.getElementById('tickerTrack'), s.leaderboard);
   });
 </script>
 </body>

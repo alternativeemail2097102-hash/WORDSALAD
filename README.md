@@ -33,6 +33,33 @@ browser itself, so there are no sound files to upload. There's a
 🔊 Sound On/Off toggle in the ⚙ settings panel if you'd rather it stay
 quiet.
 
+### Latest update
+
+- **Fixed a duplicate-guess bug**: TikTok's unofficial connection can
+  occasionally redeliver the same chat message more than once (a known
+  quirk of the underlying library). The game now recognizes and
+  ignores exact repeats, so one viewer's single comment is never
+  counted 2-3 times.
+- **Fullscreen toggle** — the ⛶ button in the top bar enters/exits
+  fullscreen, useful when broadcasting this screen directly.
+- **Top-10 news ticker** — a continuously scrolling strip under the top
+  bar always shows the top 10 scorers, with 🥇🥈🥉 medals for the top 3.
+- **Leaderboard moved off the main screen** — it's now behind the 🏆
+  button (view it any time) and automatically appears for a few
+  seconds after each round, alongside a recap of who found what for
+  how many points, with a celebration animation.
+- **The live comments/activity panel has been removed** from the main
+  screen to keep things clean and fully visible on one phone screen —
+  you can still see the single most recent comment and troubleshoot
+  via the ⚙ diagnostics panel.
+- **Answer blanks now wrap into as many rows as needed** so every
+  hidden word's letter-count is always visible without scrolling.
+- **New Timing settings** in the ⚙ panel: "Delay before next round"
+  (defaults to 3 seconds) and "Leaderboard display time" (defaults to
+  3 seconds), both adjustable live.
+- Error/status messages now stay on screen for 9 seconds instead of 6,
+  so they're easier to read.
+
 This README assumes **zero coding experience**. Follow it top to bottom.
 
 ---
@@ -210,18 +237,23 @@ Bookmark the host.html link. You'll use it every stream.
 5. As each word is found, its letters flash green in sequence tracing
    the word, then fall away once nothing else needs them — a letter
    shared by two words stays until *both* are found, exactly like the
-   real game. The round ends automatically once every word is found
-   (with a small celebration) or time runs out (revealing whatever's
-   left), and the next puzzle starts on its own a few seconds later —
-   you can also open ⚙ and tap **⏭ Skip to Next Puzzle** any time.
+   real game. While playing, the strip under the top bar shows a
+   continuously scrolling ticker of the top 10 scorers (🥇🥈🥉 for the
+   top 3). The round ends automatically once every word is found or
+   time runs out; either way, a celebration screen pops up recapping
+   who found what for how many points, then shows the leaderboard for
+   a few seconds (3 by default — adjustable in ⚙ → Timing) before the
+   next puzzle starts on its own — you can also open ⚙ and tap
+   **⏭ Skip to Next Puzzle** any time.
 6. Tap **💡** any time to reveal one extra letter of a still-hidden
    word — useful if chat is stuck.
-7. Use the **message box at the bottom** to type anything yourself
-   (answer a question, make an announcement) — it appears in the
-   Comments tab labeled HOST.
-8. Switch between the **🏆 Leaderboard** and **💬 Comments** tabs above
-   the message box to see either at a glance. Reset the leaderboard
-   any time from the ⚙ panel.
+7. Use the **message box at the bottom** to type anything yourself —
+   it pops up as a bold banner across the top of the screen for a few
+   seconds, visible to your audience too.
+8. Tap **🏆** at the top any time to check the full leaderboard on
+   demand — tap ✕ to close it. Reset the leaderboard from the ⚙ panel.
+9. Tap **⛶** to enter or exit fullscreen — handy if you're broadcasting
+   this screen directly.
 
 ---
 

@@ -126,5 +126,47 @@ const WordSaladRender = (() => {
     }
   }
 
-  return { escapeHtml, renderGrid, renderAnswers, renderProgress, renderLeaderboard, renderFeed, resetTrackingIfNewPuzzle, celebrate };
+  function medalFor(rank) {
+    if (rank === 0) return '<span class="medal medal-gold">🥇</span>';
+    if (rank === 1) return '<span class="medal medal-silver">🥈</span>';
+    if (rank === 2) return '<span class="medal medal-bronze">🥉</span>';
+    return `<span class="medal">${rank + 1}.</span>`;
+  }
+
+  let lastTickerSignature = null;
+
+  function renderTicker(wrapEl, trackEl, list) {
+    if (!list.length) {
+      wrapEl.style.display = '';
+      trackEl.style.animation = 'none';
+      trackEl.innerHTML = '<span class="ticker-empty">Find hidden words in the grid to top the leaderboard!</span>';
+      lastTickerSignature = null;
+      return;
+    }
+    const signature = JSON.stringify(list);
+    if (signature === lastTickerSignature) return; // avoid restarting the scroll animation needlessly
+    lastTickerSignature = signature;
+
+    const itemsHtml = list.map((row, i) =>
+      `<span class="ticker-item">${medalFor(i)}${escapeHtml(row.name)} <span class="tscore">${row.score}</span></span>`
+    ).join('');
+    // duplicate the content once so the loop (0% -> -50%) is seamless
+    trackEl.innerHTML = itemsHtml + itemsHtml;
+    const approxWidth = list.length * 160; // rough width estimate to keep scroll speed consistent
+    trackEl.style.animation = 'none';
+    // eslint-disable-next-line no-unused-expressions
+    trackEl.offsetHeight; // force reflow so the animation restarts cleanly
+    trackEl.style.animation = `tickerScroll ${Math.max(10, approxWidth / 40)}s linear infinite`;
+  }
+
+  function buildRecapRows(recap) {
+    if (!recap || !recap.length) {
+      return '<div class="empty-hint" style="text-align:center;">No words were found this round.</div>';
+    }
+    return '<div class="recap-list">' + recap.map((r) =>
+      `<div class="recap-row"><span><span class="rword">${escapeHtml(r.word)}</span><br/><span class="rwho">${escapeHtml(r.foundBy)}</span></span><span class="rpts">+${r.points}</span></div>`
+    ).join('') + '</div>';
+  }
+
+  return { escapeHtml, renderGrid, renderAnswers, renderProgress, renderLeaderboard, renderFeed, resetTrackingIfNewPuzzle, celebrate, renderTicker, medalFor, buildRecapRows };
 })();

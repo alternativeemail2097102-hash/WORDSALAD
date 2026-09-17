@@ -89,9 +89,54 @@ const state = {
   },
   leaderboard: {},          // { username: { score, name } }
   feed: [],                 // recent chat feed, most recent first, capped
+  settings: {
+    autoAdvanceDelaySeconds: 3,     // pause after a round ends before the next one starts
+    leaderboardDisplaySeconds: 3,   // how long the post-round recap + leaderboard shows
+  },
 };
 
 const COMBO_WINDOW_SECONDS = 14;
+
+// -------------------------------------------------------------
+// 1b. DUPLICATE-EVENT PROTECTION
+// TikTok's unofficial connection can occasionally redeliver the same
+// chat message more than once (a known quirk of the underlying
+// reverse-engineered library, especially around reconnects). Without
+// this, one viewer's single comment could be processed 2-3 times.
+// We dedupe on the platform's own message id when it's present, and
+// fall back to a short same-text/same-user time window otherwise.
+// -------------------------------------------------------------
+const recentMsgIds = new Set();
+const recentMsgIdOrder = [];
+const MAX_MSGID_CACHE = 300;
+let recentTextSignatures = []; // [{ sig, time }]
+const DEDUP_TEXT_WINDOW_MS = 4000;
+
+function resetDedupCaches() {
+  recentMsgIds.clear();
+  recentMsgIdOrder.length = 0;
+  recentTextSignatures = [];
+}
+
+function isDuplicateEvent(rawData, username, text) {
+  const msgId = getFirst(rawData, ["msgId", "common.msgId", "data.msgId", "data.common.msgId", "messageId"]);
+  if (msgId) {
+    const key = String(msgId);
+    if (recentMsgIds.has(key)) return true;
+    recentMsgIds.add(key);
+    recentMsgIdOrder.push(key);
+    if (recentMsgIdOrder.length > MAX_MSGID_CACHE) {
+      recentMsgIds.delete(recentMsgIdOrder.shift());
+    }
+    return false;
+  }
+  const now = Date.now();
+  const sig = username + "\u0001" + (text || "").trim().toLowerCase();
+  recentTextSignatures = recentTextSignatures.filter((e) => now - e.time <= DEDUP_TEXT_WINDOW_MS);
+  const isDup = recentTextSignatures.some((e) => e.sig === sig);
+  recentTextSignatures.push({ sig, time: now });
+  return isDup;
+}
 
 function comboMultiplier(count) {
   if (count >= 4) return 1.5;
@@ -122,6 +167,7 @@ function buildPublicState() {
   const g = state.game;
   return {
     connection: state.connection,
+    settings: state.settings,
     game: {
       status: g.status,
       difficulty: g.difficulty,
@@ -290,12 +336,23 @@ function endRound(reason) {
     pushFeed({ type: "win", text: `🎉 Puzzle cleared! Great teamwork, chat!${comboNote}`, time: Date.now() });
   }
 
+  const recap = g.words
+    .filter((w) => w.foundBy)
+    .map((w) => ({ word: w.word, foundBy: w.foundBy, points: w.points }));
+
   broadcastState();
-  io.emit("puzzleComplete", { cleared: reason === "cleared", bestCombo: g.bestCombo });
+  io.emit("puzzleComplete", {
+    cleared: reason === "cleared",
+    bestCombo: g.bestCombo,
+    recap,
+    theme: g.theme,
+    leaderboard: getTopN(10),
+    leaderboardDisplaySeconds: state.settings.leaderboardDisplaySeconds,
+  });
 
   // Automatically move on after a short pause so the show keeps
   // flowing; the host can also press "Next Puzzle" any time sooner.
-  autoAdvanceTimer = setTimeout(() => startRound(), 7000);
+  autoAdvanceTimer = setTimeout(() => startRound(), state.settings.autoAdvanceDelaySeconds * 1000);
 }
 
 function computeWordScore(settings, word, hintsUsedAtGuessTime, elapsedSeconds) {
@@ -397,6 +454,12 @@ function extractDisplayName(data) {
 // -------------------------------------------------------------
 function processIncomingChat(rawData, source) {
   try {
+    const username = extractUsername(rawData) || "unknown";
+    const displayName = extractDisplayName(rawData);
+    const text = extractComment(rawData) || "";
+
+    if (isDuplicateEvent(rawData, username, text)) return; // same message redelivered -- ignore it
+
     state.connection.eventCount++;
 
     // Requirement: log the FULL raw shape of the first few incoming
@@ -410,10 +473,6 @@ function processIncomingChat(rawData, source) {
         `Raw sample #${state.connection.rawSamplesLogged}: ${JSON.stringify(rawData).slice(0, 800)}`
       );
     }
-
-    const username = extractUsername(rawData) || "unknown";
-    const displayName = extractDisplayName(rawData);
-    const text = extractComment(rawData) || "";
 
     state.connection.lastReceived = { user: displayName, text, time: Date.now() };
     pushFeed({ type: "chat", user: displayName, text, time: Date.now() });
@@ -433,6 +492,7 @@ async function connectToTikTok(username, attempt = 1) {
   state.connection.tiktokUsername = username;
   state.connection.statusMessage = `Connecting to @${username} (attempt ${attempt} of ${MAX_ATTEMPTS})...`;
   state.connection.eventCount = 0;
+  resetDedupCaches();
   state.connection.rawSamplesLogged = 0;
   broadcastState();
 
@@ -525,6 +585,7 @@ function startTestMode() {
   state.connection.tiktokUsername = null;
   state.connection.statusMessage = "🧪 Test Mode running — simulated viewers are commenting.";
   state.connection.eventCount = 0;
+  resetDedupCaches();
   state.connection.rawSamplesLogged = 0;
   broadcastState();
 
@@ -602,11 +663,26 @@ io.on("connection", (socket) => {
     broadcastState();
   });
 
+  socket.on("host:updateSettings", (payload) => {
+    const clamp = (n, min, max, fallback) => {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return fallback;
+      return Math.min(max, Math.max(min, Math.round(v)));
+    };
+    if (payload && payload.autoAdvanceDelaySeconds !== undefined) {
+      state.settings.autoAdvanceDelaySeconds = clamp(payload.autoAdvanceDelaySeconds, 1, 30, state.settings.autoAdvanceDelaySeconds);
+    }
+    if (payload && payload.leaderboardDisplaySeconds !== undefined) {
+      state.settings.leaderboardDisplaySeconds = clamp(payload.leaderboardDisplaySeconds, 1, 30, state.settings.leaderboardDisplaySeconds);
+    }
+    broadcastState();
+  });
+
   socket.on("host:sendMessage", (payload) => {
     const text = (payload && payload.text || "").trim();
     if (!text) return;
     pushFeed({ type: "host", user: "HOST", text, time: Date.now() });
-    broadcastState();
+    io.emit("hostMessage", { text, time: Date.now() });
   });
 
   socket.on("disconnect", () => {});
