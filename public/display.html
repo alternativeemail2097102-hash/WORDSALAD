@@ -30,8 +30,8 @@
 
   .grid-wrap{ flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; padding:6px 24px; }
   .grid-square{ position:relative; height:100%; max-height:100%; width:auto; aspect-ratio:1/1; max-width:100%; }
-  .grid{ position:absolute; inset:0; display:grid; gap:5px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:10px; }
-  .cell{ font-size:clamp(11px, 2.6vw, 22px); border-radius:8px; }
+  .grid{ position:absolute; inset:0; display:grid; gap:4px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:8px; }
+  .cell{ font-size:clamp(9px, 2.2vw, 22px); border-radius:6px; }
 
   .answers-strip{ flex:none; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; padding:10px 24px; }
   .instructions{ flex:none; text-align:center; color:var(--ink-faint); font-size:13px; padding:0 24px 12px; }
@@ -196,7 +196,8 @@
     }
 
     const timerEl = document.getElementById('timerNum');
-    timerEl.textContent = s.game.status === 'playing' ? s.game.timeLeft + 's' : '--';
+    timerEl.textContent = s.game.status === 'playing' ? s.game.timeLeft + 's'
+      : s.game.status === 'paused' ? '⏸ ' + s.game.timeLeft + 's' : '--';
     timerEl.classList.toggle('low', s.game.status === 'playing' && s.game.timeLeft <= 10);
 
     latestLeaderboard = s.leaderboard;

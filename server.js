@@ -72,7 +72,7 @@ const state = {
     rawSamplesLogged: 0,    // how many raw samples we've captured (cap at 5)
   },
   game: {
-    status: "waiting",      // waiting | playing | roundEnd
+    status: "waiting",      // waiting | playing | paused | roundEnd
     difficulty: "easy",
     theme: null,
     gridSize: 0,
@@ -80,6 +80,7 @@ const state = {
     words: [],              // [{ word, length, cells, found, foundBy, points, hintMask }]
     hintsUsed: 0,
     roundStartedAt: null,
+    pauseStartedAt: null,
     timeLimitSeconds: 90,
     timeLeft: 90,
     usedThemes: [],
@@ -151,9 +152,9 @@ let testModeTimer = null;
 let tiktokConnection = null;
 
 const DIFFICULTY_SETTINGS = {
-  easy:   { gridSize: 5, timeLimit: 70,  basePoints: 8,  perLetter: 1, timeDecay: 0.12, hintPenalty: 1 },
-  medium: { gridSize: 6, timeLimit: 95,  basePoints: 12, perLetter: 1, timeDecay: 0.10, hintPenalty: 2 },
-  hard:   { gridSize: 7, timeLimit: 125, basePoints: 16, perLetter: 1, timeDecay: 0.08, hintPenalty: 2 },
+  easy:   { gridSize: 9,  timeLimit: 150, basePoints: 8,  perLetter: 1, timeDecay: 0.12, hintPenalty: 1 },
+  medium: { gridSize: 10, timeLimit: 200, basePoints: 12, perLetter: 1, timeDecay: 0.10, hintPenalty: 2 },
+  hard:   { gridSize: 11, timeLimit: 260, basePoints: 16, perLetter: 1, timeDecay: 0.08, hintPenalty: 2 },
 };
 
 // -------------------------------------------------------------
@@ -281,7 +282,15 @@ function startRound() {
   pushFeed({ type: "system", text: `New puzzle: "${puzzle.theme}" — find ${state.game.words.length} hidden words!`, time: Date.now() });
   broadcastState();
 
-  let secondsElapsed = 0;
+  beginTicking(settings);
+}
+
+// Runs the once-per-second countdown. Used both for a fresh round and
+// for resuming after a pause -- it always continues from the current
+// state.game.timeLeft, so pausing never loses or skews progress.
+function beginTicking(settings) {
+  clearInterval(roundTimer);
+  let secondsElapsed = settings.timeLimit - state.game.timeLeft;
   roundTimer = setInterval(() => {
     try {
       secondsElapsed++;
@@ -296,6 +305,46 @@ function startRound() {
       console.error("[roundTimer] error:", err);
     }
   }, 1000);
+}
+
+function pauseRound() {
+  const g = state.game;
+  if (g.status !== "playing") return;
+  clearInterval(roundTimer);
+  g.status = "paused";
+  g.pauseStartedAt = Date.now();
+  broadcastState();
+}
+
+function resumeRound() {
+  const g = state.game;
+  if (g.status !== "paused") return;
+  const settings = DIFFICULTY_SETTINGS[g.difficulty] || DIFFICULTY_SETTINGS.easy;
+  if (g.pauseStartedAt) {
+    const pausedMs = Date.now() - g.pauseStartedAt;
+    g.roundStartedAt += pausedMs; // so elapsed-time scoring never counts paused time
+    g.pauseStartedAt = null;
+  }
+  g.status = "playing";
+  broadcastState();
+  beginTicking(settings);
+}
+
+function stopRound() {
+  clearInterval(roundTimer);
+  clearTimeout(autoAdvanceTimer);
+  const g = state.game;
+  g.status = "waiting";
+  g.theme = null;
+  g.grid = null;
+  g.gridSize = 0;
+  g.words = [];
+  g.comboCount = 0;
+  g.lastFindAt = 0;
+  g.bestCombo = 0;
+  g.timeLeft = 0;
+  pushFeed({ type: "system", text: "⏹ Game stopped by host.", time: Date.now() });
+  broadcastState();
 }
 
 function revealOneHintLetter() {
@@ -652,6 +701,9 @@ io.on("connection", (socket) => {
 
   socket.on("host:startGame", () => startRound());
   socket.on("host:nextWord", () => startRound());
+  socket.on("host:pauseGame", () => pauseRound());
+  socket.on("host:resumeGame", () => resumeRound());
+  socket.on("host:stopGame", () => stopRound());
 
   socket.on("host:revealHint", () => {
     revealOneHintLetter();

@@ -48,11 +48,11 @@
   .grid-wrap{ flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; padding:2px 14px; }
   .grid-square{ position:relative; height:100%; max-height:100%; width:auto; aspect-ratio:1/1; max-width:100%; }
   .grid{
-    position:absolute; inset:0; display:grid; gap:4px;
+    position:absolute; inset:0; display:grid; gap:3px;
     background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md);
-    padding:7px;
+    padding:5px;
   }
-  .cell{ font-size:clamp(10px, 4vw, 20px); border-radius:5px; }
+  .cell{ font-size:clamp(8px, 3.4vw, 20px); border-radius:4px; }
 
   /* ---- answer strip: wraps into as many rows as needed, never scrolls ---- */
   .answers-strip{
@@ -162,6 +162,7 @@
 
 <footer class="sticky">
   <button class="btn-leaf" id="startBtn">▶ Start</button>
+  <button class="btn-berry icon-btn" id="stopBtn" title="Stop game" style="display:none;">⏹</button>
   <button class="btn-ghost icon-btn" id="hintBtn" title="Reveal hint">💡</button>
   <input type="text" id="hostMessageInput" placeholder="Type as host…" />
   <button class="btn-citrus" id="hostSendBtn">Send</button>
@@ -182,7 +183,7 @@
     <button class="btn-ghost" id="disconnectBtn">Disconnect</button>
   </div>
 
-  <h2>Difficulty</h2>
+  <h2>Difficulty <span style="font-weight:400; color:var(--ink-faint); font-size:12px;">— tap Save &amp; Apply below when ready</span></h2>
   <div class="diffs">
     <button class="btn-ghost" data-diff="easy">Easy</button>
     <button class="btn-ghost" data-diff="medium">Medium</button>
@@ -234,6 +235,8 @@
     <summary>Show raw message samples (first 5)</summary>
     <div class="raw-log" id="rawLog">Waiting for the first messages to arrive...</div>
   </details>
+
+  <button class="btn-leaf btn-block" id="saveSettingsBtn" style="position:sticky; bottom:0; margin-top:18px; box-shadow:0 -8px 16px var(--bg);">💾 Save &amp; Apply Settings</button>
 </div>
 
 <div class="recap-overlay" id="recapOverlay">
@@ -361,17 +364,52 @@
     }
   });
 
-  // --- settings drawer state sync ---
-  let localSettings = { autoAdvanceDelaySeconds: 3, leaderboardDisplaySeconds: 3 };
-  function updateSettingsUI(){
-    document.getElementById('advanceValue').textContent = localSettings.autoAdvanceDelaySeconds + 's';
-    document.getElementById('lbValue').textContent = localSettings.leaderboardDisplaySeconds + 's';
+  // --- settings: changes are staged locally and only sent to the
+  // server when the host taps "Save & Apply Settings" ---
+  let pending = { difficulty: 'easy', autoAdvanceDelaySeconds: 3, leaderboardDisplaySeconds: 3 };
+  let pendingInitialized = false;
+  function syncPendingUI(){
+    document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('active', b.dataset.diff === pending.difficulty));
+    document.getElementById('advanceValue').textContent = pending.autoAdvanceDelaySeconds + 's';
+    document.getElementById('lbValue').textContent = pending.leaderboardDisplaySeconds + 's';
   }
-  function pushSettings(){ socket.emit('host:updateSettings', localSettings); }
-  document.getElementById('advanceMinus').onclick = () => { localSettings.autoAdvanceDelaySeconds = Math.max(1, localSettings.autoAdvanceDelaySeconds - 1); updateSettingsUI(); pushSettings(); };
-  document.getElementById('advancePlus').onclick = () => { localSettings.autoAdvanceDelaySeconds = Math.min(30, localSettings.autoAdvanceDelaySeconds + 1); updateSettingsUI(); pushSettings(); };
-  document.getElementById('lbMinus').onclick = () => { localSettings.leaderboardDisplaySeconds = Math.max(1, localSettings.leaderboardDisplaySeconds - 1); updateSettingsUI(); pushSettings(); };
-  document.getElementById('lbPlus').onclick = () => { localSettings.leaderboardDisplaySeconds = Math.min(30, localSettings.leaderboardDisplaySeconds + 1); updateSettingsUI(); pushSettings(); };
+  document.querySelectorAll('[data-diff]').forEach(b => {
+    b.onclick = () => { pending.difficulty = b.dataset.diff; syncPendingUI(); };
+  });
+  document.getElementById('advanceMinus').onclick = () => { pending.autoAdvanceDelaySeconds = Math.max(1, pending.autoAdvanceDelaySeconds - 1); syncPendingUI(); };
+  document.getElementById('advancePlus').onclick = () => { pending.autoAdvanceDelaySeconds = Math.min(30, pending.autoAdvanceDelaySeconds + 1); syncPendingUI(); };
+  document.getElementById('lbMinus').onclick = () => { pending.leaderboardDisplaySeconds = Math.max(1, pending.leaderboardDisplaySeconds - 1); syncPendingUI(); };
+  document.getElementById('lbPlus').onclick = () => { pending.leaderboardDisplaySeconds = Math.min(30, pending.leaderboardDisplaySeconds + 1); syncPendingUI(); };
+  document.getElementById('saveSettingsBtn').onclick = () => {
+    socket.emit('host:setDifficulty', { difficulty: pending.difficulty });
+    socket.emit('host:updateSettings', {
+      autoAdvanceDelaySeconds: pending.autoAdvanceDelaySeconds,
+      leaderboardDisplaySeconds: pending.leaderboardDisplaySeconds,
+    });
+    toast('✅ Settings saved and applied.');
+    closeDrawer();
+  };
+
+  // --- play / pause / stop ---
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  function updateControlButtons(status, hasTheme){
+    if (status === 'playing') {
+      startBtn.textContent = '⏸ Pause'; startBtn.dataset.action = 'pause'; stopBtn.style.display = '';
+    } else if (status === 'paused') {
+      startBtn.textContent = '▶ Resume'; startBtn.dataset.action = 'resume'; stopBtn.style.display = '';
+    } else {
+      startBtn.textContent = hasTheme ? '▶ Restart' : '▶ Start'; startBtn.dataset.action = 'start'; stopBtn.style.display = 'none';
+    }
+  }
+  startBtn.onclick = () => {
+    WordSaladAudio.unlock();
+    const action = startBtn.dataset.action || 'start';
+    if (action === 'pause') socket.emit('host:pauseGame');
+    else if (action === 'resume') socket.emit('host:resumeGame');
+    else socket.emit('host:startGame');
+  };
+  stopBtn.onclick = () => socket.emit('host:stopGame');
 
   socket.on('state', (s) => {
     // status
@@ -383,15 +421,19 @@
       ? (s.connection.lastReceived.user + ': ' + s.connection.lastReceived.text)
       : '— nothing yet —';
 
-    if (s.settings) { localSettings = s.settings; updateSettingsUI(); }
+    if (!pendingInitialized) {
+      pending.difficulty = s.game.difficulty;
+      if (s.settings) {
+        pending.autoAdvanceDelaySeconds = s.settings.autoAdvanceDelaySeconds;
+        pending.leaderboardDisplaySeconds = s.settings.leaderboardDisplaySeconds;
+      }
+      pendingInitialized = true;
+      syncPendingUI();
+    }
 
-    document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('active', b.dataset.diff === s.game.difficulty));
+    updateControlButtons(s.game.status, !!s.game.theme);
 
     document.getElementById('themeTitle').textContent = s.game.theme || '— tap ⚙ then Start —';
-
-    const startBtn = document.getElementById('startBtn');
-    startBtn.textContent = s.game.status === 'playing' ? '⏸ Playing…' : (s.game.theme ? '▶ Restart' : '▶ Start');
-    startBtn.disabled = s.game.status === 'playing';
 
     if (s.game.grid) {
       R.resetTrackingIfNewPuzzle(s.game.theme);
@@ -401,7 +443,8 @@
     }
 
     const timerEl = document.getElementById('timerNum');
-    timerEl.textContent = s.game.status === 'playing' ? s.game.timeLeft + 's' : '--';
+    timerEl.textContent = s.game.status === 'playing' ? s.game.timeLeft + 's'
+      : s.game.status === 'paused' ? '⏸ ' + s.game.timeLeft + 's' : '--';
     timerEl.classList.toggle('low', s.game.status === 'playing' && s.game.timeLeft <= 10);
 
     latestLeaderboard = s.leaderboard;
@@ -426,9 +469,7 @@
   };
   document.getElementById('disconnectBtn').onclick = () => socket.emit('host:disconnectTikTok');
   document.getElementById('testModeBtn').onclick = () => { WordSaladAudio.unlock(); socket.emit('host:toggleTestMode'); };
-  document.querySelectorAll('[data-diff]').forEach(b => { b.onclick = () => socket.emit('host:setDifficulty', { difficulty: b.dataset.diff }); });
 
-  document.getElementById('startBtn').onclick = () => { WordSaladAudio.unlock(); socket.emit('host:startGame'); };
   document.getElementById('nextBtn').onclick = () => { socket.emit('host:nextWord'); closeDrawer(); };
   document.getElementById('hintBtn').onclick = () => socket.emit('host:revealHint');
   document.getElementById('resetLeaderboardBtn').onclick = () => {

@@ -35,6 +35,26 @@ quiet.
 
 ### Latest update
 
+- **Save & Apply Settings**: Difficulty and Timing changes in the ⚙
+  panel no longer take effect the instant you tap them. Adjust
+  whatever you want, then tap **💾 Save & Apply Settings** at the
+  bottom of the panel to commit everything at once.
+- **Real Play / Pause / Stop controls**: the single button now reads
+  **▶ Start**, **⏸ Pause**, or **▶ Resume** depending on what's
+  happening, and a separate **⏹ Stop** button appears whenever a round
+  is active — it cleanly ends the game instead of skipping straight to
+  a new puzzle. Pausing genuinely freezes the timer (verified: no time
+  or score penalty for the paused duration) so you can deal with
+  anything mid-round without being rushed.
+- **Massively expanded puzzle bank**: over 50 themed puzzles per
+  difficulty (159 total, up from 24), each with 10 or more hidden
+  words instead of 4-5. Grids are correspondingly bigger now (roughly
+  9×9 at Easy up to 12×12 at Hard) and round timers were lengthened to
+  match — every single puzzle was verified to generate correctly
+  before shipping.
+
+### Previous update
+
 - **Fixed a duplicate-guess bug**: TikTok's unofficial connection can
   occasionally redeliver the same chat message more than once (a known
   quirk of the underlying library). The game now recognizes and
@@ -229,11 +249,17 @@ Bookmark the host.html link. You'll use it every stream.
    retries a couple of times before showing a plain-English reason.
 3. In the same ⚙ panel, pick a **difficulty** (Easy / Medium / Hard) —
    this controls the grid size and word length (Easy = 3–5 letters,
-   Medium = 5–7, Hard = 7–9).
+   Medium = 5–7, Hard = 7–9) — and adjust **Timing** if you want.
+   Nothing takes effect until you tap **💾 Save & Apply Settings** at
+   the bottom of the panel, so feel free to fiddle before committing.
 4. Tap **▶ Start**. The board shows the theme and letter grid; your
    audience types a word they think is hidden in the grid as a TikTok
    comment. Different viewers can find different words in the same
-   round — the whole chat works together.
+   round — the whole chat works together. The same button becomes
+   **⏸ Pause** while playing (freezes the timer with no penalty to
+   anyone's score) and **▶ Resume** afterward; a separate **⏹ Stop**
+   button appears next to it any time a round is active, which ends
+   the game cleanly instead of jumping to a new puzzle.
 5. As each word is found, its letters flash green in sequence tracing
    the word, then fall away once nothing else needs them — a letter
    shared by two words stays until *both* are found, exactly like the
