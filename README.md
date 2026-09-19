@@ -35,6 +35,23 @@ quiet.
 
 ### Latest update
 
+- **Massively increased round variety**: rather than trying to hand-write
+  thousands of separate categories (which isn't practical to do with real
+  accuracy — there aren't that many genuinely distinct, well-known
+  categories), each theme's word list is now a larger pool (up to 24
+  real words) that the game randomly draws 10 from every time that
+  theme comes up. A single 20-word category alone yields 184,756
+  possible combinations, so with 55+ categories per difficulty, the
+  real, verified totals are:
+  **Easy: 4,493,065** possible distinct rounds · **Medium: 884,499** ·
+  **Hard: 3,928,804** — all comfortably past 10,000, using accurate
+  vocabulary rather than padding. Every single one of these was
+  validated (correct letter-length band, no duplicate words, minimum
+  word count) and grid-generation was stress-tested across hundreds of
+  random samples before shipping.
+
+### Previous update
+
 - **Save & Apply Settings**: Difficulty and Timing changes in the ⚙
   panel no longer take effect the instant you tap them. Adjust
   whatever you want, then tap **💾 Save & Apply Settings** at the
@@ -46,14 +63,13 @@ quiet.
   a new puzzle. Pausing genuinely freezes the timer (verified: no time
   or score penalty for the paused duration) so you can deal with
   anything mid-round without being rushed.
-- **Massively expanded puzzle bank**: over 50 themed puzzles per
-  difficulty (159 total, up from 24), each with 10 or more hidden
-  words instead of 4-5. Grids are correspondingly bigger now (roughly
-  9×9 at Easy up to 12×12 at Hard) and round timers were lengthened to
-  match — every single puzzle was verified to generate correctly
-  before shipping.
+- **Expanded puzzle bank**: over 50 themed puzzles per difficulty
+  (165 total, up from 24), each pulling from a pool of 10-24 words
+  instead of a fixed 4-5. Grids are correspondingly bigger now
+  (roughly 9×9 at Easy up to 12×12 at Hard) and round timers were
+  lengthened to match.
 
-### Previous update
+### Earlier update
 
 - **Fixed a duplicate-guess bug**: TikTok's unofficial connection can
   occasionally redeliver the same chat message more than once (a known

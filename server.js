@@ -152,9 +152,9 @@ let testModeTimer = null;
 let tiktokConnection = null;
 
 const DIFFICULTY_SETTINGS = {
-  easy:   { gridSize: 9,  timeLimit: 150, basePoints: 8,  perLetter: 1, timeDecay: 0.12, hintPenalty: 1 },
-  medium: { gridSize: 10, timeLimit: 200, basePoints: 12, perLetter: 1, timeDecay: 0.10, hintPenalty: 2 },
-  hard:   { gridSize: 11, timeLimit: 260, basePoints: 16, perLetter: 1, timeDecay: 0.08, hintPenalty: 2 },
+  easy:   { gridSize: 9,  timeLimit: 150, basePoints: 8,  perLetter: 1, timeDecay: 0.12, hintPenalty: 1, roundWordCount: 10 },
+  medium: { gridSize: 10, timeLimit: 200, basePoints: 12, perLetter: 1, timeDecay: 0.10, hintPenalty: 2, roundWordCount: 10 },
+  hard:   { gridSize: 11, timeLimit: 260, basePoints: 16, perLetter: 1, timeDecay: 0.08, hintPenalty: 2, roundWordCount: 10 },
 };
 
 // -------------------------------------------------------------
@@ -244,6 +244,21 @@ function pickPuzzle(difficulty) {
   return puzzle;
 }
 
+// Each theme's word list in puzzles.js is a POOL, not a fixed round --
+// this draws a random subset each time so the same theme plays
+// differently every time it comes up. A pool bigger than the sample
+// size yields real combinatorial variety (see puzzles.js header).
+function sampleWords(words, count) {
+  if (words.length <= count) return [...words];
+  const pool = [...words];
+  const sampled = [];
+  for (let i = 0; i < count && pool.length; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    sampled.push(pool.splice(idx, 1)[0]);
+  }
+  return sampled;
+}
+
 // -------------------------------------------------------------
 // 3. ROUND / GAME LOGIC
 // -------------------------------------------------------------
@@ -253,7 +268,8 @@ function startRound() {
 
   const settings = DIFFICULTY_SETTINGS[state.game.difficulty] || DIFFICULTY_SETTINGS.easy;
   const puzzle = pickPuzzle(state.game.difficulty);
-  const { grid, placements, size } = generatePuzzleGrid(puzzle.words, settings.gridSize);
+  const roundWords = sampleWords(puzzle.words, settings.roundWordCount || puzzle.words.length);
+  const { grid, placements, size } = generatePuzzleGrid(roundWords, settings.gridSize);
 
   state.game.status = "playing";
   state.game.theme = puzzle.theme;
@@ -266,7 +282,7 @@ function startRound() {
   state.game.bestCombo = 0;
   state.game.timeLimitSeconds = settings.timeLimit;
   state.game.timeLeft = settings.timeLimit;
-  state.game.words = puzzle.words.map((word) => {
+  state.game.words = roundWords.map((word) => {
     const upper = word.toUpperCase();
     return {
       word: upper,
